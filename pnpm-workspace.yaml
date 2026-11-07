@@ -1,0 +1,14 @@
+packages:
+  - backend
+  - frontend
+  - packages/*
+
+# Dependency install scripts run only if approved here.
+allowBuilds:
+  '@prisma/engines': true # downloads the migration engine
+  prisma: true
+  esbuild: true # used by tsx
+  '@parcel/watcher': false # not needed by this project's tools
+  '@scarf/scarf': false # telemetry
+  msgpackr-extract: false # optional native speed-up, falls back to JavaScript
+  protobufjs: false # postinstall version check only

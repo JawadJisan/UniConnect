@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Generated code
+backend/src/generated/
+
+# Environment files (.env.example stays tracked)
+.env
+.env.*
+!.env.example
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+
+# Logs
+logs/
+*.log
+
+# Local Claude Code config
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

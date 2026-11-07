@@ -1,0 +1,30 @@
+{
+  "name": "uniconnect",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-department university club management platform",
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @uniconnect/shared build && concurrently --names shared,api,web --prefix-colors cyan,green,magenta \"pnpm --filter @uniconnect/shared dev\" \"pnpm --filter @uniconnect/backend dev\" \"pnpm --filter @uniconnect/frontend dev\"",
+    "build": "pnpm --filter @uniconnect/shared build && pnpm --filter @uniconnect/backend build && pnpm --filter @uniconnect/frontend build",
+    "typecheck": "pnpm --filter @uniconnect/shared build && pnpm -r typecheck",
+    "lint": "eslint . && pnpm --filter @uniconnect/frontend lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm --filter @uniconnect/shared build && pnpm -r test",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "concurrently": "^9.0.0",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.72.1"
+  }
+}

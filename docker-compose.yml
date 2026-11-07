@@ -1,0 +1,25 @@
+# Local development only. Credentials match backend/.env.example.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: uniconnect
+      POSTGRES_PASSWORD: uniconnect_dev
+      POSTGRES_DB: uniconnect
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    # AOF keeps queued jobs across restarts. BullMQ requires noeviction.
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
