@@ -52,6 +52,9 @@ These are the PRD's defaults. **None is confirmed yet.** Change a row's status o
 | Next.js options      | `cacheComponents`, `partialPrefetching` on             | `create-next-app` defaults. Revisit when session-dependent pages are built                             |
 | Frontend ESLint      | `^9`                                                   | `create-next-app` default. pnpm warns that 9.x is deprecated; the root config uses 10                  |
 | Install scripts      | Allowed: `prisma`, `@prisma/engines`, `esbuild`        | Denied: `@scarf/scarf`, `msgpackr-extract`, `protobufjs`, `@parcel/watcher`. See `pnpm-workspace.yaml` |
+| Theme                | Dark only, one indigo accent                           | Project brief. Rules are in `DESIGN.md`                                                                |
+| Fonts                | Inter with `opsz`, JetBrains Mono                      | `opsz` gives the Inter Display cut without a second UI font                                            |
+| `cn` helper          | `@/lib/utils`, not the `cn` package directly           | The package drops custom sizes such as `text-micro`. ESLint enforces this                              |
 
 **Deployment note:** when rate limiting is added, set Express `trust proxy` to match the real number of proxies. Behind the Next.js proxy, every client otherwise appears to come from one IP and shares a single limit.
 

@@ -31,6 +31,9 @@ logs/
 CLAUDE.local.md
 .claude/settings.local.json
 
+# Impeccable engine binary (19 MB). Its launcher downloads and verifies it when missing.
+.claude/skills/impeccable/scripts/bin/
+
 # OS and editor
 .DS_Store
 Thumbs.db

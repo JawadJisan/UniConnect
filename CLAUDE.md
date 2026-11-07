@@ -8,7 +8,7 @@ University club management platform. pnpm monorepo: `backend/` (Express 5 API), 
 
 **Current state:** project setup only. The only route is `/api/v1/health`, the only page is a placeholder, and `schema.prisma` has no models. Most patterns below come from the PRD and aren't in the code yet.
 
-**Sources of truth:** `docs/UniConnect_PRD_V1.md`, `docs/DATABASE_SCHEMA_V1.md`. Open decisions, version pins and known doc issues are in `docs/DECISIONS.md`. All 25 PRD decisions there are unconfirmed defaults.
+**Sources of truth:** `docs/UniConnect_PRD_V1.md`, `docs/DATABASE_SCHEMA_V1.md`. Open decisions, version pins and known doc issues are in `docs/DECISIONS.md`. All 25 PRD decisions there are unconfirmed defaults. UI rules and tokens are in `docs/DESIGN.md`; `/design` in dev shows them all.
 
 ## Commands
 
@@ -44,6 +44,7 @@ Prisma: `pnpm --filter @uniconnect/backend exec prisma validate`. The Prisma con
 - **Tenant isolation:** department-scoped queries filter by `department_id` unless the caller is `super_admin`.
 - **Payments:** trust SSLCommerz only after the Order Validation API confirms, never the IPN body.
 - **Money:** `DECIMAL(10,2)` in BDT. Never floats.
+- **UI:** use tokens from `globals.css`, not raw hex. Import `cn` from `@/lib/utils`: `shadcn add` writes the wrong import, and custom type or shadow names must be registered there. Use `m.*`, not `motion.*`, which throws under strict `LazyMotion`.
 
 ## Before building on these
 

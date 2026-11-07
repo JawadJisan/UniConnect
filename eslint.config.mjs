@@ -9,6 +9,7 @@ export default tseslint.config(
       '**/.next/**',
       '**/coverage/**',
       'backend/src/generated/**',
+      '.claude/skills/impeccable/**',
       // The frontend is linted by its own Next.js config (pnpm --filter @uniconnect/frontend lint).
       'frontend/**',
     ],
