@@ -216,6 +216,10 @@
     text-wrap: balance;
   }
 
+  p {
+    text-wrap: pretty;
+  }
+
   ::selection {
     background-color: var(--brand-tint);
     color: var(--fg-1);
@@ -273,6 +277,11 @@
   letter-spacing: 0.14em;
   line-height: 1.4;
   text-transform: uppercase;
+}
+
+/* The one gradient in the system. A faint glow behind the home page hero, nowhere else. */
+@utility hero-glow {
+  background-image: radial-gradient(52% 48% at 30% 36%, var(--brand-tint), transparent 100%);
 }
 
 @utility hairline {

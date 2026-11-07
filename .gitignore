@@ -33,6 +33,7 @@ CLAUDE.local.md
 
 # Impeccable engine binary (19 MB). Its launcher downloads and verifies it when missing.
 .claude/skills/impeccable/scripts/bin/
+**/.impeccable/review/
 
 # OS and editor
 .DS_Store

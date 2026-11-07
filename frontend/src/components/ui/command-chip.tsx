@@ -4,22 +4,34 @@ import { cn } from '@/lib/utils';
 const chipClassName =
   'inline-flex h-6 w-fit shrink-0 items-center rounded-sm border border-border bg-surface-1 px-1.5 font-mono text-xs whitespace-nowrap text-fg-secondary';
 
-function ChipLabel({ children }: { children: ReactNode }) {
+type ChipSymbol = { symbol?: string | null };
+
+function ChipLabel({ symbol, children }: ChipSymbol & { children: ReactNode }) {
   return (
     <>
-      <span aria-hidden="true" className="text-brand-text">
-        /
-      </span>
+      {symbol ? (
+        <span
+          aria-hidden="true"
+          className={cn('text-brand-text', symbol.length > 0 && symbol !== '/' && 'mr-1.5')}
+        >
+          {symbol}
+        </span>
+      ) : null}
       {children}
     </>
   );
 }
 
-// Static label. The slash is added for you, so pass "events", not "/events".
-function CommandChip({ className, children, ...props }: ComponentProps<'span'>) {
+// Static label. The symbol is added for you, so pass "events", not "/events".
+function CommandChip({
+  className,
+  children,
+  symbol = '/',
+  ...props
+}: ComponentProps<'span'> & ChipSymbol) {
   return (
     <span data-slot="command-chip" className={cn(chipClassName, className)} {...props}>
-      <ChipLabel>{children}</ChipLabel>
+      <ChipLabel symbol={symbol}>{children}</ChipLabel>
     </span>
   );
 }
@@ -28,9 +40,10 @@ function CommandChip({ className, children, ...props }: ComponentProps<'span'>) 
 function CommandChipButton({
   className,
   children,
+  symbol = '/',
   type = 'button',
   ...props
-}: ComponentProps<'button'>) {
+}: ComponentProps<'button'> & ChipSymbol) {
   return (
     <button
       data-slot="command-chip"
@@ -42,7 +55,7 @@ function CommandChipButton({
       )}
       {...props}
     >
-      <ChipLabel>{children}</ChipLabel>
+      <ChipLabel symbol={symbol}>{children}</ChipLabel>
     </button>
   );
 }

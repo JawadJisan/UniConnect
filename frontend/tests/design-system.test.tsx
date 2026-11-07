@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { m } from 'motion/react';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { CommandChip, CommandChipButton } from '@/components/ui/command-chip';
 import { MicroLabel } from '@/components/ui/micro-label';
 import { Terminal, TerminalLine } from '@/components/ui/terminal';
@@ -17,6 +18,15 @@ describe('cn', () => {
     expect(cn('text-sm', 'text-micro')).toBe('text-micro');
     expect(cn('shadow-float', 'shadow-overlay')).toBe('shadow-overlay');
     expect(cn('border-border', 'border-border-strong')).toBe('border-border-strong');
+  });
+});
+
+describe('buttonVariants', () => {
+  it('lets a variant border replace the transparent base border', () => {
+    const classes = buttonVariants({ variant: 'outline' }).split(' ');
+
+    expect(classes).toContain('border-border-strong');
+    expect(classes).not.toContain('border-transparent');
   });
 });
 

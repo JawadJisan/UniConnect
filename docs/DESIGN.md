@@ -118,19 +118,19 @@ Use borders for structure. Shadows are only for layers floating above the page.
 
 Everything is in `frontend/src/components/ui/`.
 
-| Component     | Rules                                                                                                                                                                                             |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Button`      | One `default` per view. `secondary` for other actions, `ghost` for low emphasis and toolbars, `destructive` for removal. Sizes `sm` 28, `default` 32, `lg` 36px, with `lg` on touch-first screens |
-| `Card`        | `bg-card` with a hairline and no shadow. Don't nest cards                                                                                                                                         |
-| `Badge`       | Status and metadata only: `success`, `warning`, `destructive`, `secondary`, `outline`. At most one status badge per row                                                                           |
-| `Input`       | Visible border at 3:1 contrast. Always pair with a label. Set `aria-invalid` for errors                                                                                                           |
-| `Dialog`      | For short focused tasks. Give it a title, and put actions in `DialogFooter`                                                                                                                       |
-| `Table`       | Dense rows, `micro-label` headers, right-aligned amounts in `font-mono`                                                                                                                           |
-| `Command`     | Palette on Ctrl/Cmd+K. Group labels, with `Kbd` hints on items                                                                                                                                    |
-| `Kbd`         | Only for shortcuts that really work. Hide on touch-only screens                                                                                                                                   |
-| `MicroLabel`  | Metadata, group labels, table headers                                                                                                                                                             |
-| `CommandChip` | Pass `events`, not `/events`. `CommandChip` is a static label, `CommandChipButton` a real button                                                                                                  |
-| `Terminal`    | Display panel for logs and status output. `TerminalLine prompt` adds the `$`                                                                                                                      |
+| Component     | Rules                                                                                                                                                                                                                                                                                              |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`      | One `default` per view. `secondary` for other actions, `ghost` for low emphasis and toolbars, `destructive` for removal. Sizes `sm` 28, `default` 32, `lg` 36px, with `lg` on touch-first screens. For links, put `buttonVariants` on `next/link`, because `Button` would announce them as buttons |
+| `Card`        | `bg-card` with a hairline and no shadow. Don't nest cards                                                                                                                                                                                                                                          |
+| `Badge`       | Status and metadata only: `success`, `warning`, `destructive`, `secondary`, `outline`. At most one status badge per row                                                                                                                                                                            |
+| `Input`       | Visible border at 3:1 contrast. Always pair with a label. Set `aria-invalid` for errors                                                                                                                                                                                                            |
+| `Dialog`      | For short focused tasks. Give it a title, and put actions in `DialogFooter`                                                                                                                                                                                                                        |
+| `Table`       | Dense rows, `micro-label` headers, right-aligned amounts in `font-mono`                                                                                                                                                                                                                            |
+| `Command`     | Palette on Ctrl/Cmd+K. Group labels, with `Kbd` hints only for keys that work                                                                                                                                                                                                                      |
+| `Kbd`         | Only for shortcuts that really work. Hide on touch-only screens                                                                                                                                                                                                                                    |
+| `MicroLabel`  | Metadata, group labels, table headers                                                                                                                                                                                                                                                              |
+| `CommandChip` | Pass `events`, not `/events`. `CommandChip` is a static label, `CommandChipButton` a real button                                                                                                                                                                                                   |
+| `Terminal`    | Display panel for logs and status output. `TerminalLine prompt` adds the `$`                                                                                                                                                                                                                       |
 
 **Using the signature pieces well.** They add character, so keep them occasional:
 
@@ -188,6 +188,8 @@ The brand hover fill stays above 4.5:1 with white text (4.77:1).
 | Show real shortcuts with `Kbd`            | Show shortcuts that don't work           |
 | Write plain, specific labels              | Use icon tiles above headings            |
 
+**Two exceptions, both only on the home page:** the `hero-glow` utility is the one permitted gradient, and the sticky header may use a background blur. Don't reuse either as decoration elsewhere.
+
 ## 11. Intentional choices
 
 Later tools and reviews shouldn't "fix" these:
@@ -197,6 +199,7 @@ Later tools and reviews shouldn't "fix" these:
 - Dark only in V1.
 - Mono uppercase micro-labels, used sparingly.
 - 14px as the default app text size, for density.
+- The `> ./uniconnect --init` chip above the home page heading, and the `SYS.MODULE.*` card labels. The project brief asks for both, even though Impeccable's rules discourage labels above headings.
 
 ## 12. Using Impeccable
 

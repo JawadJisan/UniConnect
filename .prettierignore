@@ -8,4 +8,5 @@ backend/prisma/migrations
 docs/UniConnect_PRD_V1.md
 docs/DATABASE_SCHEMA_V1.md
 .claude/skills/impeccable
+.impeccable
 .claude/agents/impeccable-*
