@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 University club management platform (final-year project). pnpm monorepo: `backend/` (Express 5 API), `frontend/` (Next.js), `packages/shared/` (`@uniconnect/shared`).
 
-**Current state:** database and authentication. `schema.prisma` has all 18 models, migrated to the Neon `development` branch. Routes so far: Better Auth under `/api/auth/*`, `POST /api/v1/auth/register/student` and `/faculty`, and `/api/v1/health` plus `/health/ready`. No feature modules (clubs, events, payments, ...) yet. The frontend has only the landing page and `/design`. Progress and the next task are in `docs/TASKS.md`.
+**Current state:** database and authentication. `schema.prisma` has all 18 models, migrated to the Neon `development` branch. Routes so far: Better Auth under `/api/auth/*`, `POST /api/v1/auth/register/student` and `/faculty`, `GET /api/v1/departments`, and `/api/v1/health` plus `/health/ready`. No feature modules (clubs, events, payments, ...) yet. The frontend has the landing page, `/design`, and the auth flow under `src/app/(auth)/` (login, register, verify-email, forgot-password, reset-password). Open security findings are in `docs/DECISIONS.md` §7. Progress and the next task are in `docs/TASKS.md`.
 
 **Sources of truth:** `docs/UniConnect_PRD_V1.md` (behavior), `docs/DATABASE_SCHEMA_V1.md` (data model; `schema.prisma` wins on detail). Open decisions, version pins and known doc issues are in `docs/DECISIONS.md`; decisions with lasting consequences get an ADR in `docs/adr/`. Most of the 25 PRD decisions are still unconfirmed defaults; the table marks the ones that are confirmed or built. UI rules and tokens are in `docs/DESIGN.md`; `/design` in dev shows them all. Read only the PRD sections a task needs.
 
@@ -28,6 +28,7 @@ Single tests (build shared first if `dist/` is missing or stale: `pnpm --filter 
 
 ```sh
 pnpm --filter @uniconnect/backend test tests/health.test.ts
+pnpm --filter @uniconnect/backend test:integration   # Neon `test` branch; needs TEST_DATABASE_URL(_UNPOOLED) in backend/.env
 pnpm --filter @uniconnect/frontend test tests/setup.test.tsx -t "renders the home page"
 ```
 
