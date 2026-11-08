@@ -1,4 +1,14 @@
-// Models are added in the schema step. See docs/DATABASE_SCHEMA_V1.md.
+// UniConnect database schema. Source of truth; docs/DATABASE_SCHEMA_V1.md is the reference.
+//
+// Conventions (schema doc "Conventions"):
+// - Models are PascalCase singular, tables snake_case plural (@@map), columns snake_case (@map).
+// - Closed value sets (roles, statuses, blood groups) are VARCHAR. Their CHECK constraints live
+//   in the hand-written `db_invariants` migration, and the values in @uniconnect/shared constants.
+// - Partial unique indexes, CHECKs and full-text indexes are hand-written too: Prisma cannot
+//   declare them. They are listed in docs/DECISIONS.md §3.
+// - Money is DECIMAL(10,2) in BDT. No triggers, no native enums.
+// - Better Auth owns the field names of User (core fields), Session, Account and Verification.
+//   Keep them as they are; rename columns with @map only.
 
 generator client {
   provider     = "prisma-client"
@@ -8,4 +18,439 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// 1. Department -------------------------------------------------------------------------
+
+model Department {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users            User[]
+  club             Club?
+  adminTerms       DepartmentAdminTerm[]
+  eventDepartments EventDepartment[]
+  announcements    Announcement[]
+
+  @@map("departments")
+}
+
+// 2. User (Better Auth core table + additional fields) -----------------------------------
+
+model User {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String   @unique @db.VarChar(255)
+  name          String   @db.VarChar(100)
+  emailVerified Boolean  @default(false) @map("email_verified")
+  /// Better Auth's `image` field.
+  image         String?  @map("avatar_url") @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  /// student | faculty | super_admin. Immutable after creation.
+  userType         String    @map("user_type") @db.VarChar(12)
+  /// Effective role. Written only by RoleService.recompute.
+  role             String    @default("student") @db.VarChar(20)
+  /// NULL only for super_admin (CHECK users_dept_required).
+  departmentId     Int?      @map("department_id")
+  /// NULL only for super_admin (CHECK users_blood_required).
+  bloodGroup       String?   @map("blood_group") @db.VarChar(3)
+  /// FALSE = suspended. Unrelated to email verification.
+  isActive         Boolean   @default(true) @map("is_active")
+  academicSession  String?   @map("academic_session") @db.VarChar(20)
+  currentYear      Int?      @map("current_year")
+  currentSemester  Int?      @map("current_semester")
+  studentId        String?   @map("student_id") @db.VarChar(50)
+  /// Written only by BloodService.verify.
+  lastDonationDate DateTime? @map("last_donation_date") @db.Date
+  phone            String?   @db.VarChar(20)
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  sessions               Session[]
+  accounts               Account[]
+  memberships            ClubMembership[]
+  payments               PaymentTransaction[]
+  committeePositions     ClubCommitteeMember[]
+  adminTerms             DepartmentAdminTerm[]
+  eventsCreated          Event[]
+  eventRegistrations     EventRegistration[]
+  announcements          Announcement[]
+  bloodDonations         BloodDonation[]       @relation("BloodDonationDonor")
+  bloodDonationsVerified BloodDonation[]       @relation("BloodDonationVerifier")
+  bloodRequests          BloodRequest[]        @relation("BloodRequestRequester")
+  bloodRequestsFulfilled BloodRequest[]        @relation("BloodRequestFulfiller")
+  chatLogs               ChatLog[]
+  auditLogs              AuditLog[]
+
+  @@index([departmentId])
+  @@index([role])
+  @@map("users")
+}
+
+// 3. Club --------------------------------------------------------------------------------
+
+model Club {
+  id                   Int      @id @default(autoincrement())
+  name                 String   @db.VarChar(100)
+  departmentId         Int      @unique @map("department_id")
+  description          String?
+  logoUrl              String?  @map("logo_url") @db.VarChar(500)
+  membershipFeeMonthly Decimal? @map("membership_fee_monthly") @db.Decimal(10, 2)
+  membershipFeeYearly  Decimal? @map("membership_fee_yearly") @db.Decimal(10, 2)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
+
+  department       Department            @relation(fields: [departmentId], references: [id])
+  memberships      ClubMembership[]
+  committeeMembers ClubCommitteeMember[]
+  events           Event[]
+  announcements    Announcement[]
+
+  @@map("clubs")
+}
+
+// 4. ClubMembership ----------------------------------------------------------------------
+
+model ClubMembership {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id") @db.Uuid
+  clubId    Int      @map("club_id")
+  /// monthly | yearly
+  type      String   @db.VarChar(10)
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  /// pending | active | expired | cancelled. One active row per user per club (partial unique).
+  status    String   @default("pending") @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user     User                 @relation(fields: [userId], references: [id])
+  club     Club                 @relation(fields: [clubId], references: [id])
+  payments PaymentTransaction[]
+
+  @@index([userId, status])
+  @@index([clubId, status])
+  @@index([endDate])
+  @@map("club_memberships")
+}
+
+// 5. PaymentTransaction (SSLCommerz) -----------------------------------------------------
+
+model PaymentTransaction {
+  id                     Int       @id @default(autoincrement())
+  userId                 String    @map("user_id") @db.Uuid
+  clubMembershipId       Int       @map("club_membership_id")
+  amount                 Decimal   @db.Decimal(10, 2)
+  currency               String    @default("BDT") @db.VarChar(3)
+  /// Our tran_id sent to SSLCommerz.
+  transactionId          String    @unique @map("transaction_id") @db.VarChar(100)
+  /// pending | completed | failed | refunded
+  paymentStatus          String    @default("pending") @map("payment_status") @db.VarChar(20)
+  paymentMethod          String?   @map("payment_method") @db.VarChar(50)
+  valId                  String?   @map("val_id") @db.VarChar(100)
+  bankTranId             String?   @map("bank_tran_id") @db.VarChar(100)
+  /// Set only after the Order Validation API confirms the payment.
+  validatedAt            DateTime? @map("validated_at")
+  paymentGatewayResponse Json?     @map("payment_gateway_response") @db.JsonB
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user       User           @relation(fields: [userId], references: [id])
+  membership ClubMembership @relation(fields: [clubMembershipId], references: [id])
+
+  @@index([clubMembershipId])
+  @@index([userId, createdAt])
+  @@index([paymentStatus, createdAt])
+  @@map("payment_transactions")
+}
+
+// 6. ClubCommitteeMember -----------------------------------------------------------------
+
+model ClubCommitteeMember {
+  id            Int      @id @default(autoincrement())
+  userId        String   @map("user_id") @db.Uuid
+  clubId        Int      @map("club_id")
+  /// e.g. President, Secretary. "Club Executive" is a position, not a role.
+  position      String   @db.VarChar(50)
+  termStartYear Int      @map("term_start_year")
+  termEndYear   Int      @map("term_end_year")
+  /// One current row per user per club (partial unique).
+  isCurrent     Boolean  @default(true) @map("is_current")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+  club Club @relation(fields: [clubId], references: [id])
+
+  @@index([clubId, isCurrent])
+  @@index([userId, isCurrent])
+  @@map("club_committee_members")
+}
+
+// 7. DepartmentAdminTerm -----------------------------------------------------------------
+
+model DepartmentAdminTerm {
+  id           Int      @id @default(autoincrement())
+  userId       String   @map("user_id") @db.Uuid
+  departmentId Int      @map("department_id")
+  startDate    DateTime @map("start_date") @db.Date
+  endDate      DateTime @map("end_date") @db.Date
+  /// One current term per department and per user (partial uniques).
+  isCurrent    Boolean  @default(true) @map("is_current")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user       User       @relation(fields: [userId], references: [id])
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@index([userId, isCurrent])
+  @@index([departmentId, isCurrent])
+  @@map("department_admin_terms")
+}
+
+// 8. Event -------------------------------------------------------------------------------
+
+model Event {
+  id              Int      @id @default(autoincrement())
+  title           String   @db.VarChar(200)
+  description     String?
+  organizerClubId Int      @map("organizer_club_id")
+  /// public | members_only
+  visibility      String   @default("public") @db.VarChar(20)
+  /// Stored for V2; paid events are not processed in V1.
+  isPaid          Boolean  @default(false) @map("is_paid")
+  feeAmount       Decimal? @map("fee_amount") @db.Decimal(10, 2)
+  startDate       DateTime @map("start_date")
+  endDate         DateTime @map("end_date")
+  venue           String?  @db.VarChar(200)
+  maxAttendees    Int?     @map("max_attendees")
+  posterImageUrl  String?  @map("poster_image_url") @db.VarChar(500)
+  /// draft | published | cancelled | completed
+  status          String   @default("draft") @db.VarChar(20)
+  createdById     String   @map("created_by") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+
+  organizerClub Club                @relation(fields: [organizerClubId], references: [id])
+  createdBy     User                @relation(fields: [createdById], references: [id])
+  departments   EventDepartment[]
+  registrations EventRegistration[]
+
+  @@index([organizerClubId, status])
+  @@index([status, startDate])
+  @@map("events")
+}
+
+// 9. EventDepartment (junction) ----------------------------------------------------------
+
+model EventDepartment {
+  eventId      Int @map("event_id")
+  departmentId Int @map("department_id")
+
+  event      Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@id([eventId, departmentId])
+  @@index([departmentId])
+  @@map("event_departments")
+}
+
+// 10. EventRegistration ------------------------------------------------------------------
+
+model EventRegistration {
+  id                   Int       @id @default(autoincrement())
+  userId               String    @map("user_id") @db.Uuid
+  eventId              Int       @map("event_id")
+  /// registered | attended | cancelled | no_show
+  status               String    @default("registered") @db.VarChar(20)
+  checkedInAt          DateTime? @map("checked_in_at")
+  registeredAt         DateTime  @default(now()) @map("registered_at")
+  cancelledAt          DateTime? @map("cancelled_at")
+  /// Reserved for V2 paid events.
+  paymentStatus        String?   @map("payment_status") @db.VarChar(20)
+  /// Reserved for V2 paid events.
+  paymentTransactionId String?   @map("payment_transaction_id") @db.VarChar(100)
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+  @@index([eventId, status])
+  @@index([userId])
+  @@map("event_registrations")
+}
+
+// 11. Announcement -----------------------------------------------------------------------
+
+model Announcement {
+  id           Int      @id @default(autoincrement())
+  /// At least one of clubId / departmentId is set (CHECK announcements_scope_required).
+  clubId       Int?     @map("club_id")
+  departmentId Int?     @map("department_id")
+  title        String   @db.VarChar(200)
+  content      String
+  authorId     String   @map("author_id") @db.Uuid
+  isPinned     Boolean  @default(false) @map("is_pinned")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  club       Club?       @relation(fields: [clubId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  author     User        @relation(fields: [authorId], references: [id])
+
+  @@index([clubId, createdAt])
+  @@index([departmentId, createdAt])
+  @@index([isPinned])
+  @@map("announcements")
+}
+
+// 12. BloodDonation ----------------------------------------------------------------------
+
+model BloodDonation {
+  id           Int       @id @default(autoincrement())
+  userId       String    @map("user_id") @db.Uuid
+  /// Copied from User.bloodGroup by the service.
+  bloodGroup   String    @map("blood_group") @db.VarChar(3)
+  donationDate DateTime  @map("donation_date") @db.Date
+  units        Int       @default(1)
+  hospitalName String?   @map("hospital_name") @db.VarChar(200)
+  notes        String?
+  /// verified, verifiedById and verifiedAt move together (CHECK donation_verification_consistent).
+  verified     Boolean   @default(false)
+  verifiedById String?   @map("verified_by") @db.Uuid
+  verifiedAt   DateTime? @map("verified_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  donor    User  @relation("BloodDonationDonor", fields: [userId], references: [id])
+  verifier User? @relation("BloodDonationVerifier", fields: [verifiedById], references: [id])
+
+  @@index([userId, verified])
+  @@index([verified, donationDate])
+  @@map("blood_donations")
+}
+
+// 13. BloodRequest -----------------------------------------------------------------------
+
+model BloodRequest {
+  id             Int       @id @default(autoincrement())
+  requesterId    String    @map("requester_id") @db.Uuid
+  patientName    String    @map("patient_name") @db.VarChar(100)
+  bloodGroup     String    @map("blood_group") @db.VarChar(3)
+  unitsNeeded    Int       @map("units_needed")
+  reason         String?
+  contactPhone   String    @map("contact_phone") @db.VarChar(20)
+  hospitalName   String    @map("hospital_name") @db.VarChar(200)
+  requiredByDate DateTime  @map("required_by_date") @db.Date
+  /// pending | fulfilled | cancelled | expired
+  status         String    @default("pending") @db.VarChar(20)
+  fulfilledById  String?   @map("fulfilled_by") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  resolvedAt     DateTime? @map("resolved_at")
+
+  requester User  @relation("BloodRequestRequester", fields: [requesterId], references: [id])
+  fulfiller User? @relation("BloodRequestFulfiller", fields: [fulfilledById], references: [id])
+
+  @@index([status, bloodGroup])
+  @@index([requiredByDate])
+  @@map("blood_requests")
+}
+
+// 14. ChatLog (90-day retention, daily job) ----------------------------------------------
+
+model ChatLog {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id") @db.Uuid
+  question  String
+  answer    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("chat_logs")
+}
+
+// 15. Session (Better Auth) --------------------------------------------------------------
+
+model Session {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// 16. Account (Better Auth) --------------------------------------------------------------
+
+model Account {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  accountId             String    @map("account_id") @db.VarChar(255)
+  /// `credential` in V1.
+  providerId            String    @map("provider_id") @db.VarChar(50)
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  /// Password hash. Never returned by any API.
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+// 17. Verification (Better Auth) ---------------------------------------------------------
+
+model Verification {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  identifier String   @db.VarChar(255)
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// 18. AuditLog (append-only) -------------------------------------------------------------
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  /// NULL = system actor (cron job, payment IPN).
+  userId     String?  @map("user_id") @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String?  @map("entity_type") @db.VarChar(50)
+  /// Primary key of the affected row as text (integer or UUID).
+  entityId   String?  @map("entity_id") @db.VarChar(50)
+  oldValue   Json?    @map("old_value") @db.JsonB
+  newValue   Json?    @map("new_value") @db.JsonB
+  ipAddress  String?  @map("ip_address") @db.Inet
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

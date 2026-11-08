@@ -1,0 +1,51 @@
+import type { Mail } from '../lib/mailer.js';
+
+const escape = (value: string) =>
+  value.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+  );
+
+function layout(heading: string, body: string, actionLabel: string, url: string, note: string) {
+  return `<!doctype html><html><body style="font-family:system-ui,sans-serif;color:#1a1927;max-width:520px;margin:0 auto;padding:24px">
+<h1 style="font-size:20px">${escape(heading)}</h1>
+<p>${escape(body)}</p>
+<p><a href="${escape(url)}" style="display:inline-block;background:#5b57e8;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">${escape(actionLabel)}</a></p>
+<p style="color:#5f5d73;font-size:13px">${escape(note)}</p>
+<p style="color:#5f5d73;font-size:13px">If the button doesn't work, paste this link into your browser:<br>${escape(url)}</p>
+</body></html>`;
+}
+
+export function verifyEmailTemplate(to: string, name: string, url: string): Mail {
+  const note =
+    'This link expires in 24 hours. If you did not create a UniConnect account, ignore this email.';
+  return {
+    to,
+    subject: 'Verify your UniConnect email',
+    text: `Hi ${name},\n\nConfirm your email to finish creating your UniConnect account:\n${url}\n\n${note}`,
+    html: layout(
+      `Hi ${name}, confirm your email`,
+      'Confirm your email address to finish creating your UniConnect account.',
+      'Verify email',
+      url,
+      note,
+    ),
+  };
+}
+
+export function resetPasswordTemplate(to: string, name: string, url: string): Mail {
+  const note =
+    'This link expires in 1 hour and works once. If you did not ask to reset your password, ignore this email.';
+  return {
+    to,
+    subject: 'Reset your UniConnect password',
+    text: `Hi ${name},\n\nUse this link to choose a new password:\n${url}\n\n${note}`,
+    html: layout(
+      `Hi ${name}, reset your password`,
+      'Use the button below to choose a new password. Signing in again will be required on every device.',
+      'Reset password',
+      url,
+      note,
+    ),
+  };
+}

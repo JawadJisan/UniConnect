@@ -21,3 +21,14 @@ export const EVENT_REGISTRATION_STATUSES = [
 ] as const;
 
 export const BLOOD_REQUEST_STATUSES = ['pending', 'fulfilled', 'cancelled', 'expired'] as const;
+
+/** `AuditLog.action` values. Add new actions here, not as string literals in services. */
+export const AUDIT_ACTIONS = {
+  USER_REGISTERED: 'USER_REGISTERED',
+  EMAIL_VERIFIED: 'EMAIL_VERIFIED',
+  LOGIN: 'LOGIN',
+  PASSWORD_CHANGED: 'PASSWORD_CHANGED',
+  ROLE_CHANGED: 'ROLE_CHANGED',
+} as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

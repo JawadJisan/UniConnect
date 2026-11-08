@@ -87,9 +87,9 @@
 | Foreign keys to users | `UUID`. |
 | Money | `DECIMAL(10,2)` in BDT. Never `float`. In code use Prisma `Decimal`, transport as string. |
 | Timestamps | `TIMESTAMP` stored in UTC; displayed in `Asia/Dhaka`. Every mutable table has `created_at` and `updated_at` (Prisma `@updatedAt`). |
-| Enums | Stored as `VARCHAR` with CHECK constraints (PRD roles, statuses). Prisma models them as native `enum` where the value set is closed, mapped with `@map`. |
+| Enums | Stored as `VARCHAR` with CHECK constraints (PRD roles, statuses). Prisma models them as `String @db.VarChar(n)`, not native `enum`. The CHECKs live in the `db_invariants` migration and the value sets in `@uniconnect/shared` constants, validated with its Zod enums. |
 | Deletes | No soft delete in V1. Clubs are not deletable. Events are cancelled, not deleted. Rows are never hard-deleted by the application except `EventDepartment` (cascade from `Event`) and `Session` (cascade from `User`). |
-| Better Auth tables | Generated with `npx @better-auth/cli generate` and kept in sync with the Better Auth config. Do not hand-edit column names; change the Better Auth field mapping instead. |
+| Better Auth tables | Written in `schema.prisma` with Better Auth's field names. Check them against `npx auth@latest generate` output (it writes to `schema.prisma`, so review it as a diff) and keep them in sync with the Better Auth config. Rename columns with `@map`, never the Prisma field names. |
 
 ---
 

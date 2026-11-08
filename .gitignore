@@ -13,6 +13,9 @@ next-env.d.ts
 # Generated code
 backend/src/generated/
 
+# Neon CLI link (project and checked-out branch, per developer)
+.neon
+
 # Environment files (.env.example stays tracked)
 .env
 .env.*
