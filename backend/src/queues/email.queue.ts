@@ -1,4 +1,5 @@
 import { Queue } from 'bullmq';
+import { logger } from '../lib/logger.js';
 import { createRedis } from '../lib/redis.js';
 
 export const EMAIL_QUEUE = 'email';
@@ -11,7 +12,8 @@ let queue: Queue<EmailJob> | undefined;
 
 // Created on first use, so importing the auth config (tests, scripts) opens no connection.
 function getQueue(): Queue<EmailJob> {
-  queue ??= new Queue<EmailJob>(EMAIL_QUEUE, {
+  if (queue) return queue;
+  queue = new Queue<EmailJob>(EMAIL_QUEUE, {
     connection: createRedis(),
     defaultJobOptions: {
       attempts: 5,
@@ -21,6 +23,9 @@ function getQueue(): Queue<EmailJob> {
       removeOnFail: { age: 24 * 60 * 60 },
     },
   });
+  // Without a listener BullMQ console.errors the raw ioredis error, whose `command` can carry
+  // the AUTH password. Log the message only.
+  queue.on('error', (err) => logger.error(`email queue: ${err.message}`));
   return queue;
 }
 
