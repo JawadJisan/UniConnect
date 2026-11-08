@@ -230,6 +230,21 @@
     outline-offset: 2px;
   }
 
+  input,
+  textarea {
+    caret-color: var(--brand-text);
+  }
+
+  /* Browser autofill paints fields light; keep them on the dark field ground. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--fg-1);
+    box-shadow: 0 0 0 1000px var(--canvas) inset;
+    caret-color: var(--brand-text);
+    transition: background-color 9999s ease-out 0s;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     ::before,
