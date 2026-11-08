@@ -1,0 +1,51 @@
+# UniConnect: Tasks
+
+The single task tracker. One row per task, one task per session where possible. Update the status and notes at the end of every session, together with `docs/SESSION_HANDOFF.md`.
+
+**Statuses:** `Done` (verified in the session that finished it), `Next`, `Planned`, `Blocked` (waiting on a decision in `docs/DECISIONS.md` §5).
+
+**Every feature slice covers:** PRD IDs and acceptance criteria · database change (via the `db-migration` skill) · shared Zod contracts · repository, service, controller, routes · role, department and resource authorization · frontend page or form · loading, empty, error and success states · unit tests · integration tests (RBAC, cross-department, conflicts, audit row) · E2E for the journey · OpenAPI entry · verification and handoff.
+
+**If time runs short** (PRD decision #25 default): defer the chatbot first, then dashboard analytics, then the blood module.
+
+## Phase 0: Specification reconciliation
+
+| ID  | Task                                                                                         | Status  | Notes                                     |
+| --- | -------------------------------------------------------------------------------------------- | ------- | ----------------------------------------- |
+| 0.1 | Project audit and engineering alignment (`uniconnect-00-project-audit`)                      | Done    | 2026-11-08. See `docs/SESSION_HANDOFF.md` |
+| 0.2 | Decide D5, D6, D12, D18 (needed by Phase 1)                                                  | Next    | `docs/DECISIONS.md` §5                    |
+| 0.3 | Confirm PRD decisions in batches before the phase that needs them (D10)                      | Planned | `docs/DECISIONS.md` §1                    |
+| 0.4 | Fix PRD and schema doc issues #4–#16 once their decisions are made (PRD edits need approval) | Planned | `docs/DECISIONS.md` §4                    |
+
+## Phase 1: Engineering foundations
+
+| ID  | Task                                                                                                                                                                                 | Status  | Blocked by        |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ----------------- |
+| 1.0 | Monorepo, tooling, shared package, schema (18 tables), auth backend, landing page, design system                                                                                     | Done    |                   |
+| 1a  | Claude Code config, path rules, permissions, task and handoff docs, ADR folder, `db-migration` skill                                                                                 | Done    | 2026-11-08        |
+| 1b  | Test harness: integration Jest project, test database, factories; `RoleService` lock and tests for every schema §20 transition; Better Auth hook tests; seed one club per department | Next    | D5, D12, D18      |
+| 1c  | API platform: request ID and redacted HTTP logs, global `/api/v1` limit (100/min/IP), P2002 index mapping, OpenAPI registry and `/api/docs`, pagination contract, CI workflow        | Planned | D6, D9            |
+| 1d  | Frontend platform: QueryClient, Axios instance and error normaliser, Better Auth client, state components, app shell, Playwright config and smoke E2E                                | Planned | D16 (shell style) |
+
+## Phase 2: Authentication, profiles and authorization
+
+| ID  | Task                                                                                              | Status  | Blocked by                        |
+| --- | ------------------------------------------------------------------------------------------------- | ------- | --------------------------------- |
+| 2.1 | Auth pages: login, student and faculty registration, verify result, forgot and reset password     | Planned | `cacheComponents` session pattern |
+| 2.2 | Route protection and role-aware navigation                                                        | Planned |                                   |
+| 2.3 | `GET/PATCH /users/me` (FR-USER-001/002), avatar upload (FR-USER-003)                              | Planned |                                   |
+| 2.4 | Admin users: list, detail, suspend/activate with session revocation, recompute-role (FR-USER-005) | Planned |                                   |
+| 2.5 | RBAC matrix test scaffold (role × endpoint, from one policy table)                                | Planned |                                   |
+
+## Phases 3–10
+
+| Phase | Scope                                                                                                                                  | Status  | Blocked by            |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------- | ------- | --------------------- |
+| 3     | Clubs (list, detail, my-club, edit), committee (assign, edit, end term), dept admin terms (assign, end, renew, list), term-expiry jobs | Planned | PRD #1–3, #10, #11    |
+| 4     | Memberships and SSLCommerz: checkout, IPN with Order Validation, idempotency, stale-cancel, reconcile and expiry jobs, receipts        | Planned | D11, PRD #8, #9       |
+| 5     | Events: CRUD, poster, publish/cancel/complete, shared visibility query, registration with row lock, check-in, CSV, reminders           | Planned | PRD #7, #16           |
+| 6     | Announcements: CRUD, pin, scope enforcement, feed                                                                                      | Planned | D15, PRD #17          |
+| 7     | Blood: donations, verification, donor list, requests, expiry job                                                                       | Planned | D14, PRD #14, #15     |
+| 8     | Dashboards and audit-log viewer                                                                                                        | Planned | D13                   |
+| 9     | AI chatbot: full-text retrieval of visible content only, PII stripping, Gemini, scoped cache, ChatLog retention. No vector database    | Planned | PRD #18, Gemini model |
+| 10    | Hardening and release: IDOR sweep, security review, full E2E, responsive QA, restore drill, deployment, demo                           | Planned | PRD #24               |
