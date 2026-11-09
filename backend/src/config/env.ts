@@ -23,10 +23,25 @@ const envSchema = z
     SMTP_USER: z.string().optional(),
     SMTP_PASS: z.string().optional(),
     SMTP_FROM: z.string().optional(),
+
+    // Cloudinary (avatar uploads). Optional in development and test: without them the upload
+    // route answers 503 UPLOAD_UNAVAILABLE. Tests mock src/lib/cloudinary.ts.
+    CLOUDINARY_CLOUD_NAME: z.string().optional(),
+    CLOUDINARY_API_KEY: z.string().optional(),
+    CLOUDINARY_API_SECRET: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;
-    for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'] as const) {
+    const required = [
+      'SMTP_HOST',
+      'SMTP_USER',
+      'SMTP_PASS',
+      'SMTP_FROM',
+      'CLOUDINARY_CLOUD_NAME',
+      'CLOUDINARY_API_KEY',
+      'CLOUDINARY_API_SECRET',
+    ] as const;
+    for (const key of required) {
       if (!value[key]) {
         ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required in production` });
       }
