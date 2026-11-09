@@ -4,173 +4,159 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Task 2.1 and parts of 1b and 1d (2026-11-08), on branch `feat/auth-pages`, branched from `chore/engineering-alignment`. The session ran five steps:
+Tasks 2.3 (FR-USER, backend and frontend), 2.2 (route protection, role-aware navigation) and the shell and E2E parts of 1d, on branch `feat/user-profile` from `main` (2026-11-09).
 
-1. Check the backend auth routes and their tests.
-2. Build the full frontend auth flow with Impeccable, in the existing design.
-3. Run an independent security review.
-4. Have a fresh subagent reproduce a reported issue.
-5. Fix only confirmed issues.
+Earlier the same day, `feat/auth-pages` was pushed and merged as PR #1 (merge commit `faa75a1`).
+
+Nothing from this session is committed.
 
 ## Source documents reviewed
 
-- `CLAUDE.md`, `docs/TASKS.md`, the previous handoff
-- `docs/DECISIONS.md` (§2 auth step, §4, §5)
-- PRD FR-AUTH-001 to 008 (summarised by an Explore agent)
-- `docs/DESIGN.md`, `PRODUCT.md`
-- the Impeccable context and references (`new-work.md`, `craft-floor.md`, `mode-operate.md`)
-- all backend auth source and tests, and the frontend source
+- `CLAUDE.md`, `docs/TASKS.md`, the previous handoff, `docs/DECISIONS.md` (§2, §3, §7)
+- PRD §5 (capability matrix), §7 FR-USER-001 to 005, §16 (audit actions)
+- `schema.prisma` (`User`, `Account`) and the `db_invariants` migration
+- `docs/DESIGN.md`, `PRODUCT.md`, the auth surface brief
+- Impeccable references: `new-work.md`, `operate.md`, `mode-operate.md`, `craft-floor.md`
+- Next 16 docs bundled in `node_modules/next/dist/docs`: proxy, authentication, instant navigation, `instant` segment config
 
 ## Completed work (verified)
 
-**Backend tests.** Integration tests run against the real Better Auth and Prisma on a new Neon `test` branch (D5 local part; D19).
+**Backend (first half of the session; plan approved):**
 
-- 38 tests cover:
-  - registration for students and faculty, with mass assignment, case-insensitive email, partial unique and a parallel race
-  - sign-in (cookie flags; 401, 403 unverified, 403 suspended; `LOGIN` audit)
-  - session and sign-out
-  - verify-email (valid, tampered, expired, idempotent)
-  - resend limits
-  - password reset (uniform answer, single-use token, revokes sessions, policy, 3 per hour)
-  - change-password
-  - departments
-- `scripts/with-test-db.mjs` refuses to run against the development host. I checked this in-session: it exits 1 when given the development URLs.
+- `GET/PATCH /api/v1/users/me` and `PATCH /api/v1/users/me/avatar` (multer + Cloudinary)
+- the change-password route stays Better Auth's
+- D24 is in `DECISIONS.md`; details are in its row and in git
 
-**New public endpoint:** `GET /api/v1/departments` (D21). Registration couldn't work without it.
+**Frontend (second plan, approved, with your choices):** sidebar + top bar shell, honest overview, sonner toasts, RTL + Playwright.
 
-**Frontend auth flow** in `frontend/src/app/(auth)/`:
+- **Route protection (D25):**
+  - `src/proxy.ts` makes an optimistic cookie check on `/dashboard/*` and sends anyone without a cookie to `/login?next=…`
+  - `RequireSession` (client) handles session pending, signed out, 401, 403 (suspended screen), other errors (retry) and sign-out
+  - login and `RedirectIfSignedIn` follow a same-origin `?next=` (`lib/safe-next.ts`)
+- **Shell** (`app/(app)/_components/`):
+  - 232px sidebar from one role-filtered nav table (only routes that exist), a "Group / Page" top bar, a ⌘K "Go to" palette, avatar plus sign out, a mobile drawer and a skip link
+- **Overview** (`/dashboard`):
+  - greeting, with titles like Dr./Md. skipped
+  - a profile checklist by user type
+  - an Account card
+  - per-role capabilities from PRD §5, marked "Not built yet", with no links
+- **Profile** (`/dashboard/profile`):
+  - sticky identity card with the avatar drop zone: preview before upload, shared limits checked before the network, an uploading overlay and inline errors
+  - Personal details (only dirty fields sent; an empty phone sends `null`)
+  - Academic details (students only; 409 `STUDENT_ID_TAKEN` shown on its field)
+  - Password through `authClient.changePassword`
+  - Saves are secondary until their form is dirty
+- **New primitives:** `components/ui/{sonner,avatar,skeleton,error-state}.tsx`
+- **Shared and helper modules:** `hooks/use-me.ts`, `hooks/use-command-k.ts`, `lib/{format,names,safe-next}.ts`
+- **Moved:** `PasswordInput` and the password hint to `components/password/`
+- **Impeccable:**
+  - structure picked by you; the roll was skipped (the brief records `seed: none (skipped, structure user-pinned)`)
+  - surface brief: `frontend/.impeccable/surfaces/src-app-app-layout-tsx.md`
+  - `impeccable detect`: `[]`
+  - finish reviewer: `fix` with 7 items, then 6 resolved, then the last one resolved → **`ship`**. That covers those 7 fixes, not a fresh full review.
+  - the documenter updates `docs/DESIGN.md` (see "Files changed")
+- **Two real bugs found by E2E and fixed:**
+  - sign-out from the workspace landed on `/login?next=/dashboard`, because the guard redirected before the shell's redirect to `/`. Sign-out now lives in the guard.
+  - after login with `?next=`, `RedirectIfSignedIn` and the login view raced. Both now use `safeNext`.
+- **Next dev error fixed:** "Could not validate … instant navigation" on both pages. The pages render only behind the client guard, so they export `instant = false`, as low in the tree as possible (recorded in D25).
 
-- login, register (Student/Faculty switch via `?as=faculty`), verify-email, forgot-password and reset-password
-- a signed-in state in the header (name plus Sign out)
-- signed-in visitors redirected off the auth pages
-- new primitives: `Field`, `FormAlert`, `NativeSelect`
-- platform pieces: `lib/api.ts` (single `ApiError` normaliser, D22), `lib/auth-client.ts`, `QueryProvider`
-- session pattern recorded as D20
-- shared now has `loginSchema`, `forgotPasswordSchema`, `resetPasswordSchema` and `departmentSchema`
-
-**Impeccable process:**
-
-- layout "Column + flow trail", chosen by the user
-- surface brief `frontend/.impeccable/surfaces/src-app-auth-layout-tsx.md`
-- detector: no findings
-- finish reviewer: first verdict `fix` with 7 items; I fixed them, a second verdict found 2 regressions, and I fixed those
-- the third verdict resolved everything except the open seed item (see Risks); I clamped its one remaining nit, the countdown that showed 5:01, after the review
-- the documenter added Forms and Flow trail entries to `docs/DESIGN.md`
-
-**Reported issue reproduced:** resend returned 429 right after registering. Cause: the send at registration runs `hooks.before` and uses up the 1-per-5-minutes budget. A fresh subagent reproduced it with a failing test. The fix applies per-email limits to HTTP requests only. The browser walk now shows "Sent." after resending.
-
-**Security review:** an independent read-only subagent; findings are in `docs/DECISIONS.md` §7. Fixed with fail-first tests, as the user scoped:
-
-- **M2:** a suspended user's existing session is now rejected on `/api/auth/*`
-- **M3:** the queue has an error listener
-- **M4 (partial):** verification sends are no longer awaited
-- **L1:** `/verify-password` is disabled and `/change-password` limited to 5 per minute
-- **L2:** the Redis client fails fast
-- **L7:** a password change always revokes other sessions
+**Correction to the previous handoff:** it blamed Windows Application Control for the frontend Jest failure ("Must use import to load ES Module"). After you unblocked SWC, the error remained. The real cause was a Jest transform cache poisoned while SWC was blocked. `npx jest --clearCache` fixed it.
 
 ## Files changed
 
-**Backend:**
-
-- `src/lib/auth.ts`, `src/lib/redis.ts`, `src/queues/email.queue.ts`, `src/app.ts`
-- `src/modules/departments/*` (new)
-- `jest.config.mjs`, `jest.integration.config.mjs` (new), `package.json` (scripts only, no dependency change)
-- `scripts/with-test-db.mjs` (new), `.env.example`
-- tests: `tests/integration/*` (new), `tests/departments.test.ts`, `tests/redis-clients.test.ts`
-
-**Shared:** `src/schemas/auth.ts`, `src/schemas/department.ts` (new), `src/index.ts`.
-
-**Frontend:**
-
-- `src/app/(auth)/**` (new)
-- `src/components/ui/{field,form-alert,native-select}.tsx`
-- `src/lib/{api,auth-client}.ts`, `src/providers/query-provider.tsx`
-- `src/app/layout.tsx`, `src/app/_components/site-header.tsx`, `src/app/globals.css` (caret and autofill)
-- `jest.config.mjs`, `tests/auth/*`, `tests/mocks/*`
-- `.impeccable/surfaces/src-app-auth-layout-tsx.md`
-
-**Docs:** `CLAUDE.md`, `docs/DECISIONS.md` (auth-step rows, corrected deployment note, D5, D19–D23, §7), `docs/TASKS.md`, `docs/DESIGN.md`, this file.
+- **Backend:**
+  - `src/modules/users/*`, `src/lib/cloudinary.ts`, `src/middleware/upload.ts` (new)
+  - `src/middleware/validate.ts`, `src/config/env.ts`, `src/app.ts`
+  - `scripts/e2e-db.ts` (new); `package.json` scripts `dev:e2e` and `e2e:db`
+  - tests: `tests/users.test.ts`, `tests/integration/users.int.test.ts`
+- **Shared:** `src/schemas/user.ts` (new), `src/constants/index.ts`, `src/index.ts`
+- **Frontend:**
+  - `src/proxy.ts`, `src/app/(app)/**`, the new UI primitives, hooks and libs listed above
+  - `src/app/layout.tsx` (Toaster), `site-header.tsx` (Dashboard link, shared ⌘K hook)
+  - auth: `login-view.tsx`, `redirect-if-signed-in.tsx`, imports in `register-form.tsx` and `reset-password-view.tsx`
+  - `package.json` (`sonner`); `playwright.config.ts`, `e2e/*`
+  - tests: `tests/app/*`, `tests/auth/login.test.tsx`, `tests/mocks/auth-client.ts`
+- **Root:** `package.json` (`pnpm e2e`), `pnpm-lock.yaml` (sonner)
+- **Docs:**
+  - `docs/DECISIONS.md` (D24–D27), `docs/TASKS.md` (1d, 2.2, 2.3 done)
+  - `docs/UniConnect_PRD_V1.md` §16 (two audit actions), `CLAUDE.md`, `PRODUCT.md` (Status)
+  - `docs/DESIGN.md` (by the documenter), this file
 
 ## Database/migration changes
 
-No schema or migration change.
+None. No schema change, and no command touched `development` or `production`.
 
-**Neon (user-approved):**
-
-- `neon branches create --name test --parent development`
-- test branch connection strings written into `backend/.env` as `TEST_DATABASE_URL(_UNPOOLED)` without printing them
-- `prisma migrate status` against `test`: up to date, both migrations inherited
-
-The tests upsert the CSE, ECE and BBA departments on `test` and truncate the user tables there.
-
-Finding: `development` has no departments, because it was never seeded. The browser walk therefore ran the dev API against `test` (user-approved). Nothing was written to `development`.
+The Neon `test` branch was used by the integration tests and E2E. `e2e-db.ts seed` truncates its user tables. You approved this with the plan.
 
 ## Commands executed and results
 
 All from the repo root unless noted:
 
-- `pnpm format:check`: pass
+- `pnpm typecheck`: all three packages Done
 - `pnpm lint`: pass
-- `pnpm typecheck`: exit 0
-- `pnpm test`: backend 8 suites, 59/59; frontend 7 suites, 58/58
-- `pnpm --filter @uniconnect/backend test:integration`: 4 suites, 47/47 in the last three consecutive runs. One earlier full run, right after `pnpm typecheck`, failed 13 tests (the registration file and the resend test). I didn't capture its error output, and it didn't recur. Treat it as an open flakiness question.
-- `impeccable detect --json` on the changed UI: `[]`
-- Browser walk in Edge through Playwright (`msedge` channel; no browser download), dev API on the `test` branch:
-  - passed all 20 checks: validation, weak-password wording, register → verify-email, resend ("Sent."), unverified login refused, verify link → `/login?verified=true`, wrong password, login → `/` with the `httpOnly` `SameSite=Lax` cookie, redirect off `/login`, sign-out, forgot → reset → login with the new password, used reset link → invalid state, no horizontal scroll at 390px on five routes
-  - the console showed only the expected 403 (unverified sign-in) and 401 (wrong password) responses
-- Screenshots: `frontend/.impeccable/review/auth-*.png` (gitignored)
-
-Stopped processes:
-
-- with the user's OK, a stale Next dev server from an earlier session (PID 19240) that was holding port 3000
-- the dev servers this session started; ports 3000 and 4000 are now free
+- `pnpm format:check`: pass
+- `pnpm test` (last run, after every code change): backend 9 suites, 108/108; frontend 12 suites, 142/142
+- `pnpm --filter @uniconnect/backend test:integration`: 5 suites, 61/61. It ran after the frontend work and before the review fix rounds, which changed only frontend files.
+- `pnpm e2e`:
+  - the first two runs found the bugs above
+  - after the fixes: **three consecutive runs of 18/18** (4.5, 3.9 and 3.9 minutes)
+  - after review fix round 1: **18/18** (3.2 minutes)
+  - the final copy-only change (`ROLE_AS_PERSON`) was covered by unit tests and a recapture, not another E2E run; no E2E test asserts that heading
+- Env passthrough probe: blank `SMTP_HOST` and `CLOUDINARY_*` survive pnpm, `with-test-db` and dotenv as empty values, so the E2E API sends no email and makes no upload
+- Screenshots in `frontend/.impeccable/review/` (gitignored), made with a scratch Playwright config outside the repo:
+  - overview and profile for student and faculty at 1440 and 390
+  - the drawer and form error states
+  - avatar focus, error, preview and uploading
+  - this overwrote the earlier landing-page `desktop.png` and `mobile.png` there
 
 ## Tests executed and results
 
-As above. Every new regression test failed before its fix and passes after:
+As above. New tests:
 
-- `resend-after-register.int.test.ts`
-- `security-fixes.int.test.ts`: M2, M4 resend, L1, L7. The M4 reset-with-queue-down test passed before any fix, so that part of M4 was not reproduced.
-- `redis-clients.test.ts`: L2, M3
+- **Frontend unit:**
+  - `tests/app/nav.test.ts`: role nav for 5 roles, `safeNext`, initials, greeting, role phrasing
+  - `shell.test.tsx`: guard states, sidebar, sign-out, drawer, Ctrl+K
+  - `profile.test.tsx`: cards per user type, dirty-only PATCH, null phone, validation, server details, 409, toast
+  - `avatar-password.test.tsx`
+  - `redirect.test.tsx`
+  - login `next` cases
+- **E2E:**
+  - `auth.spec.ts`: register → verify gate → login; `next` round trip; wrong password; redirect off auth pages; sign-out; forged cookie; uniform reset answer
+  - `profile.spec.ts`: edits persist, 409 inline, client validation, avatar type check/preview/stubbed upload, faculty without academic fields, change password signs out the other device and only the new password works
+  - `shell.spec.ts`: 3 user types, palette, 375px drawer, no horizontal scroll
+
+**Not covered by E2E:**
+
+- moderator and dept_admin, which are unit-tested only, because the seed can't create them without term rows (task 1b)
+- a real Cloudinary upload, which needs your OK; the plan's one manual upload is still not done
 
 ## Current blockers
 
-None for merging this branch. Before it merges, `chore/engineering-alignment` must merge first, because this branch is built on top of it.
+None.
 
 ## Approved decisions and ADR links
 
-Approved this session:
-
-- D5, local part
-- the session pattern (D20)
-- the departments endpoint (D21)
-- the auth layout ("Column + flow trail")
-- the fix scope ("resend + small code fixes")
-
-No ADR yet. H1, the trusted client IP, will need one when it is decided.
+D24 to D27 (`docs/DECISIONS.md`). No ADR.
 
 ## Risks and unresolved questions
 
-- **H1 (High, open):** the Next rewrite forwards the client's `X-Forwarded-For` unchanged. Per-IP limits can be bypassed, and in production everyone shares one bucket. This needs a deployment decision. The earlier DECISIONS deployment note was wrong and has been corrected.
-- **Other open findings:** M1, the M4 reset-timing part, L3–L6 and I1–I6 (`docs/DECISIONS.md` §7).
-- **`development` has no departments.** Run `pnpm db:seed` on it, with approval, before using the dev environment for registration.
-- **Impeccable seed provenance is open.** No `concept-seed` roll was run for this in-world Operate surface; the user picked from three structures instead. The finish reviewer therefore won't give `ship`. Every other finding was resolved.
-- **Design drift the documenter reported (not fixed):**
-  - `Input` defaults to h-8, so auth forms set h-9 by hand
-  - `NativeSelect` uses `bg-background` while `Input` is transparent
-  - the Student/Faculty switcher is a one-off component
-  - `text-md` is used for the line under auth titles
-- **Flakiness:** one integration run failed (see above).
-- **E2E:** the Playwright walk was a scratch script, not a committed `frontend/e2e/` suite. That is task 1d.
+- **Manual Cloudinary check is still open:** run one real upload and confirm the URL renders. It needs your OK.
+- **E2E rate limits:** E2E runs the API with `NODE_ENV=test`, so the IP rate limiters are off. Per-email limits still use real Upstash Redis.
+- **E2E and dev server:** E2E and a normal `pnpm dev` can run at the same time on different ports. `next dev` may still refuse a second instance in the same directory; that wasn't tested.
+- **Static shell:** the workspace pages opt out of instant-navigation validation (`instant = false`). Server-side session reads would let them prerender a real shell; that's a later optimization.
+- **Still open from before:** H1 (trusted client IP), M1, L3–L6, I1–I6 (`DECISIONS.md` §7); the `development` branch has no departments; D16 (shell motif).
+- **pnpm notice:** pnpm printed "Agent skills awaiting approval: @tanstack/react-table". Nothing was approved.
 
 ## Exact next task
 
-Merge `chore/engineering-alignment`, then `feat/auth-pages`; the user pushes and opens the PRs. Then continue with task 1b: factories, the `RoleService` lock (D12) and club seeding (D18). Or, if the user prefers, decide H1 and M1 first.
+1. Review the diff and commit on `feat/user-profile`, if you ask.
+2. With approval, run the manual Cloudinary upload.
+3. Task 1b: factories, the `RoleService` lock (D12), and seeding clubs and a moderator/dept_admin, so E2E can cover every role.
 
 ## Acceptance criteria
 
-For 1b, as written in `docs/TASKS.md`. For H1: a test with limiters on shows that a forged `X-Forwarded-For` does not change the rate-limit key, and that requests through the frontend are keyed by the real client IP.
+For 1b, as in `docs/TASKS.md`. For the Cloudinary check: one real JPEG uploaded through `/dashboard/profile` is saved as a `res.cloudinary.com` URL and renders after a reload.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` §7. Decide H1 (trusted client IP) and M1 (per-account sign-in limit), then plan task 1b in plan mode and wait for approval.
+> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` D24–D27. Commit `feat/user-profile` if asked, then plan task 1b in plan mode and wait for approval.

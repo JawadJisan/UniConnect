@@ -9,6 +9,7 @@ import { redis } from './lib/redis.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { departmentRouter } from './modules/departments/department.routes.js';
+import { userRouter } from './modules/users/user.routes.js';
 
 export const app = express();
 
@@ -26,6 +27,7 @@ app.use(express.json({ limit: '100kb' }));
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/departments', departmentRouter);
+app.use('/api/v1/users', userRouter);
 
 // Liveness: the process is up. Touches no external service.
 app.get('/api/v1/health', (_req, res) => {

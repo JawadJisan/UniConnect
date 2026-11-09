@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 University club management platform (final-year project). pnpm monorepo: `backend/` (Express 5 API), `frontend/` (Next.js), `packages/shared/` (`@uniconnect/shared`).
 
-**Current state:** database and authentication. `schema.prisma` has all 18 models, migrated to the Neon `development` branch. Routes so far: Better Auth under `/api/auth/*`, `POST /api/v1/auth/register/student` and `/faculty`, `GET /api/v1/departments`, and `/api/v1/health` plus `/health/ready`. No feature modules (clubs, events, payments, ...) yet. The frontend has the landing page, `/design`, and the auth flow under `src/app/(auth)/` (login, register, verify-email, forgot-password, reset-password). Open security findings are in `docs/DECISIONS.md` §7. Progress and the next task are in `docs/TASKS.md`.
+**Current state:** database and authentication. `schema.prisma` has all 18 models, migrated to the Neon `development` branch. Routes so far: Better Auth under `/api/auth/*`, `POST /api/v1/auth/register/student` and `/faculty`, `GET /api/v1/departments`, `GET/PATCH /api/v1/users/me` and `PATCH /api/v1/users/me/avatar` (Cloudinary, `src/lib/cloudinary.ts`), and `/api/v1/health` plus `/health/ready`. No feature modules (clubs, events, payments, ...) yet. The frontend has the landing page, `/design`, the auth flow under `src/app/(auth)/` (login, register, verify-email, forgot-password, reset-password), and the signed-in workspace under `src/app/(app)/` (role-aware shell, `/dashboard` overview, `/dashboard/profile`), guarded by `src/proxy.ts` plus a client guard (D25). Open security findings are in `docs/DECISIONS.md` §7. Progress and the next task are in `docs/TASKS.md`.
 
 **Sources of truth:** `docs/UniConnect_PRD_V1.md` (behavior), `docs/DATABASE_SCHEMA_V1.md` (data model; `schema.prisma` wins on detail). Open decisions, version pins and known doc issues are in `docs/DECISIONS.md`; decisions with lasting consequences get an ADR in `docs/adr/`. Most of the 25 PRD decisions are still unconfirmed defaults; the table marks the ones that are confirmed or built. UI rules and tokens are in `docs/DESIGN.md`; `/design` in dev shows them all. Read only the PRD sections a task needs.
 
@@ -23,6 +23,8 @@ Every task: explore → plan → approve → implement → test → review → d
 ## Commands
 
 Run from the repo root: `pnpm dev`, `pnpm build`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm format`, `pnpm format:check`, `pnpm db:up`, `pnpm db:down`.
+
+`pnpm e2e` runs the Playwright suite (`frontend/e2e/`, installed Edge): it starts the API on the Neon `test` branch (port 4100, `NODE_ENV=test`, SMTP and Cloudinary blanked) and `next dev` on 3100, and reseeds the test users first (D27). It uses the `test` branch, so don't run it alongside `test:integration`.
 
 Single tests (build shared first if `dist/` is missing or stale: `pnpm --filter @uniconnect/shared build`):
 

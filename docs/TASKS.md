@@ -19,23 +19,23 @@ The single task tracker. One row per task, one task per session where possible. 
 
 ## Phase 1: Engineering foundations
 
-| ID  | Task                                                                                                                                                                                                                  | Status  | Blocked by        |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------- |
-| 1.0 | Monorepo, tooling, shared package, schema (18 tables), auth backend, landing page, design system                                                                                                                      | Done    |                   |
-| 1a  | Claude Code config, path rules, permissions, task and handoff docs, ADR folder, `db-migration` skill                                                                                                                  | Done    | 2026-11-08        |
-| 1b  | Test harness: ~~integration Jest project, test database~~ (done 2026-11-08), ~~Better Auth hook tests~~ (done), factories; `RoleService` lock and tests for every schema §20 transition; seed one club per department | Next    | D12, D18          |
-| 1c  | API platform: request ID and redacted HTTP logs, global `/api/v1` limit (100/min/IP), P2002 index mapping, OpenAPI registry and `/api/docs`, pagination contract, CI workflow                                         | Planned | D6, D9            |
-| 1d  | Frontend platform: ~~QueryClient, Axios instance and error normaliser, Better Auth client~~ (done 2026-11-08), state components, app shell, Playwright config and smoke E2E                                           | Planned | D16 (shell style) |
+| ID  | Task                                                                                                                                                                                                                         | Status  | Blocked by                   |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---------------------------- |
+| 1.0 | Monorepo, tooling, shared package, schema (18 tables), auth backend, landing page, design system                                                                                                                             | Done    |                              |
+| 1a  | Claude Code config, path rules, permissions, task and handoff docs, ADR folder, `db-migration` skill                                                                                                                         | Done    | 2026-11-08                   |
+| 1b  | Test harness: ~~integration Jest project, test database~~ (done 2026-11-08), ~~Better Auth hook tests~~ (done), factories; `RoleService` lock and tests for every schema §20 transition; seed one club per department        | Next    | D12, D18                     |
+| 1c  | API platform: request ID and redacted HTTP logs, global `/api/v1` limit (100/min/IP), P2002 index mapping, OpenAPI registry and `/api/docs`, pagination contract, CI workflow                                                | Planned | D6, D9                       |
+| 1d  | Frontend platform: ~~QueryClient, Axios instance and error normaliser, Better Auth client~~ (done 2026-11-08), ~~state components (Skeleton, ErrorState), app shell, Playwright config and E2E~~ (done 2026-11-09, D25, D27) | Done    | D16 still open (shell motif) |
 
 ## Phase 2: Authentication, profiles and authorization
 
-| ID  | Task                                                                                                                                                   | Status  | Blocked by                                 |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------ |
-| 2.1 | Auth pages: login, student and faculty registration, verify result, forgot and reset password                                                          | Done    | 2026-11-08, branch `feat/auth-pages` (D20) |
-| 2.2 | Route protection and role-aware navigation                                                                                                             | Planned |                                            |
-| 2.3 | `GET/PATCH /users/me` (FR-USER-001/002), avatar upload (FR-USER-003)                                                                                   | Planned |                                            |
-| 2.4 | Admin users: list, detail, suspend/activate with session revocation, recompute-role (FR-USER-005). Suspend must delete sessions (`DECISIONS.md` §7 M2) | Planned |                                            |
-| 2.5 | RBAC matrix test scaffold (role × endpoint, from one policy table)                                                                                     | Planned |                                            |
+| ID  | Task                                                                                                                                                   | Status  | Blocked by                                       |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------ |
+| 2.1 | Auth pages: login, student and faculty registration, verify result, forgot and reset password                                                          | Done    | 2026-11-08, branch `feat/auth-pages` (D20)       |
+| 2.2 | Route protection and role-aware navigation                                                                                                             | Done    | 2026-11-09, branch `feat/user-profile` (D25)     |
+| 2.3 | `GET/PATCH /users/me` (FR-USER-001/002), avatar upload (FR-USER-003), change password (FR-USER-004): API, overview and profile pages                   | Done    | 2026-11-09, branch `feat/user-profile` (D24–D27) |
+| 2.4 | Admin users: list, detail, suspend/activate with session revocation, recompute-role (FR-USER-005). Suspend must delete sessions (`DECISIONS.md` §7 M2) | Planned |                                                  |
+| 2.5 | RBAC matrix test scaffold (role × endpoint, from one policy table)                                                                                     | Planned |                                                  |
 
 ## Phases 3–10
 
