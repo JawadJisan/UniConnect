@@ -12,10 +12,11 @@ import { FormAlert } from '@/components/ui/form-alert';
 import { Input } from '@/components/ui/input';
 import { toApiError } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
+import { safeNext } from '@/lib/safe-next';
 import { AuthPage } from '../_components/auth-page';
 import { emailError } from '../_components/email-error';
 import { SIGN_UP_FLOW } from '../_components/flow-trail';
-import { PasswordInput } from '../_components/password-input';
+import { PasswordInput } from '@/components/password/password-input';
 import { ResendVerification } from '../_components/resend-verification';
 
 type Problem =
@@ -74,7 +75,8 @@ export function LoginView() {
       password: values.password,
     });
     if (!error) {
-      router.replace('/');
+      // Back to the page that sent them here (?next=), or the dashboard.
+      router.replace(safeNext(params.get('next')));
       router.refresh();
       return;
     }

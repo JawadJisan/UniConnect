@@ -29,6 +29,9 @@ export const AUDIT_ACTIONS = {
   LOGIN: 'LOGIN',
   PASSWORD_CHANGED: 'PASSWORD_CHANGED',
   ROLE_CHANGED: 'ROLE_CHANGED',
+  /** Self-service edit of PATCH /api/v1/users/me (DECISIONS D24). */
+  PROFILE_UPDATED: 'PROFILE_UPDATED',
+  AVATAR_UPDATED: 'AVATAR_UPDATED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

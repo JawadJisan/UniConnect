@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Toaster } from '@/components/ui/sonner';
 import { MotionProvider } from '@/providers/motion-provider';
 import { QueryProvider } from '@/providers/query-provider';
 import './globals.css';
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       <body className="flex min-h-full flex-col">
         <QueryProvider>
           <MotionProvider>{children}</MotionProvider>
+          <Toaster />
         </QueryProvider>
       </body>
     </html>
