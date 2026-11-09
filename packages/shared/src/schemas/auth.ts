@@ -63,3 +63,26 @@ export const registerFacultySchema = z.object(baseRegistration).strict();
 
 export type RegisterStudentInput = z.infer<typeof registerStudentSchema>;
 export type RegisterFacultyInput = z.infer<typeof registerFacultySchema>;
+
+// Better Auth endpoints. The backend enforces these too: sign-in checks the stored hash, and
+// the reset and change-password hooks apply passwordSchema to `newPassword`.
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1, 'Enter your password.'),
+});
+
+export const forgotPasswordSchema = z.object({ email: emailSchema });
+
+export const resetPasswordSchema = z
+  .object({
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match.',
+  });
+
+export type LoginInput = z.infer<typeof loginSchema>;
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

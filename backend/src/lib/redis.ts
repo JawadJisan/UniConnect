@@ -25,5 +25,7 @@ export function createRedis(options: RedisOptions = {}): Redis {
   return client;
 }
 
-// Shared connection for request-path work (health checks, rate limiting, cache).
-export const redis = createRedis();
+// Shared connection for request-path work (health checks, rate limiting, cache). Unlike
+// BullMQ's connections it must fail fast: with unlimited retries a Redis outage makes every
+// rate-limited auth request hang instead of reaching its fail-open or fail-closed path.
+export const redis = createRedis({ maxRetriesPerRequest: 1, commandTimeout: 2000 });

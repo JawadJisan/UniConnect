@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { MotionProvider } from '@/providers/motion-provider';
+import { QueryProvider } from '@/providers/query-provider';
 import './globals.css';
 
 // The opsz axis gives large text the Inter Display cut automatically.
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       className={`dark ${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <MotionProvider>{children}</MotionProvider>
+        <QueryProvider>
+          <MotionProvider>{children}</MotionProvider>
+        </QueryProvider>
       </body>
     </html>
   );

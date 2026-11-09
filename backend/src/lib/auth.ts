@@ -1,7 +1,13 @@
 import { AUDIT_ACTIONS, PASSWORD_REQUIREMENTS_MESSAGE, passwordSchema } from '@uniconnect/shared';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { APIError, createAuthMiddleware, getIP, isAPIError } from 'better-auth/api';
+import {
+  APIError,
+  createAuthMiddleware,
+  getIP,
+  getSessionFromCtx,
+  isAPIError,
+} from 'better-auth/api';
 import { env } from '../config/env.js';
 import { enqueueEmail } from '../queues/email.queue.js';
 import { auditService, type AuditEntry } from '../services/audit.service.js';
@@ -66,7 +72,8 @@ const options = {
 
   // Users are created only by RegistrationService and the seed script, which set user_type and
   // role on the server. /update-user is replaced by PATCH /api/v1/users/me (FR-USER-002).
-  disabledPaths: ['/sign-up/email', '/update-user'],
+  // /verify-password is an unused password oracle for anyone holding a session (review L1).
+  disabledPaths: ['/sign-up/email', '/update-user', '/verify-password'],
 
   emailAndPassword: {
     enabled: true,
@@ -92,8 +99,12 @@ const options = {
   },
 
   emailVerification: {
+    // Not awaited: a queue failure must not turn into a 500 that only existing, unverified
+    // accounts get (review M4). Registration already tolerates a failed send.
     sendVerificationEmail: async ({ user, url }) => {
-      await enqueueEmail({ kind: 'verify-email', to: user.email, name: user.name, url });
+      void enqueueEmail({ kind: 'verify-email', to: user.email, name: user.name, url }).catch(
+        (err: Error) => logger.error(`verification email not queued: ${err.message}`),
+      );
     },
     sendOnSignUp: false,
     sendOnSignIn: false,
@@ -176,9 +187,26 @@ const options = {
         }
       }
 
+      // Suspended users keep no working session on Better Auth's own routes either; only
+      // sign-out stays open so they can clear the cookie (review M2). requireAuth covers /api/v1.
+      if (
+        ctx.path !== '/sign-out' &&
+        ctx.request?.headers.get('cookie')?.includes('session_token')
+      ) {
+        const current = await getSessionFromCtx(ctx, { disableRefresh: true });
+        if (current && (current.user as { isActive?: boolean }).isActive === false) {
+          throw new APIError('FORBIDDEN', {
+            code: 'ACCOUNT_SUSPENDED',
+            message: 'Account is suspended. Contact admin.',
+          });
+        }
+      }
+
+      // Per-email limits apply to HTTP requests only. Server-side auth.api calls (the send at
+      // registration) also run this hook and must not use up the user's resend budget.
       const limit = PER_EMAIL_LIMITS[ctx.path];
       const email = typeof ctx.body?.email === 'string' ? ctx.body.email.trim().toLowerCase() : '';
-      if (limit && email) {
+      if (limit && email && ctx.request) {
         let result;
         try {
           result = await consume(`rl:email:${ctx.path}:${email}`, limit.window, limit.max);
@@ -192,6 +220,12 @@ const options = {
             message: 'Too many requests for this email. Try again later.',
           });
         }
+      }
+
+      // A password change always signs out every other session, whatever the client sends
+      // (review L7). A reset already revokes all of them.
+      if (ctx.path === '/change-password') {
+        return { context: { body: { ...ctx.body, revokeOtherSessions: true } } };
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
@@ -219,6 +253,8 @@ const options = {
       '/send-verification-email': { window: 5 * 60, max: 3 },
       '/request-password-reset': { window: 60 * 60, max: 5 },
       '/reset-password': { window: 60 * 60, max: 5 },
+      // Tighter than Better Auth's built-in 3 per 10s: guesses at the current password (L1).
+      '/change-password': { window: 60, max: 5 },
     },
     customStorage: {
       consume: (key, rule) => consume(`rl:auth:${key}`, rule.window, rule.max),

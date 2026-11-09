@@ -60,6 +60,7 @@ Dark only. There's no light theme in V1. Use the Tailwind names, never hex value
 - **One accent.** Indigo means "primary or active". Don't add a second decorative color.
 - **Status colors only mean status:** membership, payment, event and blood request states.
 - Status meaning also needs a word or icon, never color alone.
+- Inputs use a `brand-text` caret. Browser autofill is repainted onto the canvas with foreground text (base layer of `globals.css`), so filled fields never turn light.
 
 ## 4. Typography
 
@@ -137,6 +138,15 @@ Everything is in `frontend/src/components/ui/`.
 - Use terminal panels and chips for status readouts, shortcuts and marketing moments. Don't ask a student to type shell commands, and keep forms as normal forms.
 - Don't place a micro-label above every heading.
 - Don't use chips for navigation that a normal link or button handles better.
+
+**Forms.** Keep them plain, built from these pieces in `components/ui/`:
+
+- `Field` ties one control to its label, optional description and inline error. Spread `controlProps(id, { error, description })` on the control so `aria-invalid` and `aria-describedby` point at that text. Required is the default; only `optional` is marked.
+- `FormAlert` is form-level status: `tone` `error`, `success` or `info`. The icon and a title in words carry the meaning. Errors use `role="alert"`, the others `role="status"`.
+- `NativeSelect` is a styled native `<select>` for short fixed lists such as departments and blood groups, so phones keep their own picker.
+- On auth and other touch-first forms, inputs are `h-9`. Error messages name the problem and the fix.
+
+**Flow trail.** `FlowTrail` (`app/(auth)/_components/`) shows where the visitor stands on a multi-page flow: register → verify → sign in, or request → inbox → new password. Mono `text-xs` with chevrons between steps; the current step is `text-foreground` with `aria-current="step"` and a static `brand-text` underline. Tick only the steps the page can show happened: a cold `/login` ticks nothing. No motion, so it looks the same on every page and before hydration.
 
 **After `shadcn add`:** generated files import `cn` from the package, and ESLint will flag it. Change the import to `@/lib/utils`, then restyle to these tokens.
 

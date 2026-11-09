@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   DropletIcon,
   LogInIcon,
+  LogOutIcon,
   MenuIcon,
   UserPlusIcon,
   UsersIcon,
@@ -25,6 +26,7 @@ import {
 } from '@/components/ui/command';
 import { CommandChipButton } from '@/components/ui/command-chip';
 import { Kbd } from '@/components/ui/kbd';
+import { authClient } from '@/lib/auth-client';
 import { sampleEvents } from './sample-events';
 import { Wordmark } from './wordmark';
 
@@ -65,6 +67,16 @@ export function SiteHeader() {
   const isApple = useIsApplePlatform();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // Client-side session read (docs/DECISIONS.md, session pattern). While it loads, the
+  // signed-out links stay in place, which is also what renders without JavaScript.
+  const { data: session } = authClient.useSession();
+  const user = session?.user;
+
+  async function signOut() {
+    setOpen(false);
+    await authClient.signOut();
+    router.refresh();
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -111,20 +123,36 @@ export function SiteHeader() {
           >
             Press <Kbd className="h-4.5">{isApple ? '⌘K' : 'Ctrl K'}</Kbd> to search
           </CommandChipButton>
-          <Link
-            href="/login"
-            prefetch={false}
-            className={buttonVariants({ variant: 'ghost', size: 'sm' })}
-          >
-            Log in
-          </Link>
-          <Link
-            href="/register"
-            prefetch={false}
-            className={buttonVariants({ variant: 'secondary', size: 'sm' })}
-          >
-            Sign up
-          </Link>
+          {user ? (
+            <>
+              <span
+                className="hidden max-w-40 truncate text-sm text-fg-secondary sm:inline"
+                title={user.email}
+              >
+                {user.name}
+              </span>
+              <Button variant="secondary" size="sm" onClick={signOut}>
+                Sign out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                prefetch={false}
+                className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+              >
+                Log in
+              </Link>
+              <Link
+                href="/register"
+                prefetch={false}
+                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+              >
+                Sign up
+              </Link>
+            </>
+          )}
           <Button
             data-needs-js
             variant="ghost"
@@ -182,12 +210,19 @@ export function SiteHeader() {
               </CommandGroup>
             ) : null}
             <CommandGroup heading="Account">
-              {account.map(({ label, href, Icon }) => (
-                <CommandItem key={href} onSelect={() => go(href)}>
-                  <Icon />
-                  {label}
+              {user ? (
+                <CommandItem onSelect={signOut}>
+                  <LogOutIcon />
+                  Sign out
                 </CommandItem>
-              ))}
+              ) : (
+                account.map(({ label, href, Icon }) => (
+                  <CommandItem key={href} onSelect={() => go(href)}>
+                    <Icon />
+                    {label}
+                  </CommandItem>
+                ))
+              )}
             </CommandGroup>
           </CommandList>
           <div className="mt-1 hidden items-center gap-4 border-t border-border px-2 pt-2 pb-1 text-xs text-fg-tertiary [@media(pointer:fine)]:flex">

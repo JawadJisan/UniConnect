@@ -4,11 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-University club management platform. pnpm monorepo: `backend/` (Express 5 API), `frontend/` (Next.js), `packages/shared/` (`@uniconnect/shared`).
+University club management platform (final-year project). pnpm monorepo: `backend/` (Express 5 API), `frontend/` (Next.js), `packages/shared/` (`@uniconnect/shared`).
 
-**Current state:** database and authentication. `schema.prisma` has all 18 models, migrated to the Neon `development` branch. Routes so far: Better Auth under `/api/auth/*`, `POST /api/v1/auth/register/student` and `/faculty`, and `/api/v1/health` plus `/health/ready`. No feature modules (clubs, events, payments, ...) yet.
+**Current state:** database and authentication. `schema.prisma` has all 18 models, migrated to the Neon `development` branch. Routes so far: Better Auth under `/api/auth/*`, `POST /api/v1/auth/register/student` and `/faculty`, `GET /api/v1/departments`, and `/api/v1/health` plus `/health/ready`. No feature modules (clubs, events, payments, ...) yet. The frontend has the landing page, `/design`, and the auth flow under `src/app/(auth)/` (login, register, verify-email, forgot-password, reset-password). Open security findings are in `docs/DECISIONS.md` §7. Progress and the next task are in `docs/TASKS.md`.
 
-**Sources of truth:** `docs/UniConnect_PRD_V1.md`, `docs/DATABASE_SCHEMA_V1.md`. Open decisions, version pins and known doc issues are in `docs/DECISIONS.md`. Most of its 25 PRD decisions are still unconfirmed defaults; the table marks the ones that are confirmed or built. UI rules and tokens are in `docs/DESIGN.md`; `/design` in dev shows them all.
+**Sources of truth:** `docs/UniConnect_PRD_V1.md` (behavior), `docs/DATABASE_SCHEMA_V1.md` (data model; `schema.prisma` wins on detail). Open decisions, version pins and known doc issues are in `docs/DECISIONS.md`; decisions with lasting consequences get an ADR in `docs/adr/`. Most of the 25 PRD decisions are still unconfirmed defaults; the table marks the ones that are confirmed or built. UI rules and tokens are in `docs/DESIGN.md`; `/design` in dev shows them all. Read only the PRD sections a task needs.
+
+## Workflow
+
+Every task: explore → plan → approve → implement → test → review → document → handoff.
+
+- At the start, read `docs/SESSION_HANDOFF.md` and the task's row in `docs/TASKS.md`. At the end, update both.
+- Plan first for anything beyond a small fix, and wait for approval before editing.
+- These need separate, explicit approval: schema or migration changes, dependency changes, changes to `.claude/` or `.mcp.json`, commits, pushes, deploys, and any Neon or Upstash command beyond a read.
+- Never resolve a conflict between the PRD, the schema and the code silently. Record the options in `docs/DECISIONS.md` and ask.
+- Report only what ran. A test passes only if it ran in this session; report failures with their output.
 
 ## Commands
 
@@ -18,10 +28,11 @@ Single tests (build shared first if `dist/` is missing or stale: `pnpm --filter 
 
 ```sh
 pnpm --filter @uniconnect/backend test tests/health.test.ts
+pnpm --filter @uniconnect/backend test:integration   # Neon `test` branch; needs TEST_DATABASE_URL(_UNPOOLED) in backend/.env
 pnpm --filter @uniconnect/frontend test tests/setup.test.tsx -t "renders the home page"
 ```
 
-Prisma (from `backend/`, or with `pnpm --filter @uniconnect/backend`): `db:migrate` (`migrate dev`), `db:deploy`, `db:status`, `db:generate`, `db:studio`, `db:seed` (departments and the super admin, from the `SEED_*` env vars; safe to rerun); `exec prisma validate`. Backend `build`, `typecheck` and `test` run `prisma generate` first. The Prisma config reads `DATABASE_URL_UNPOOLED`, so `backend/.env` must exist (copy `backend/.env.example`, then run `neon checkout development` in `backend/` to fill in the database URLs).
+Prisma (from `backend/`, or with `pnpm --filter @uniconnect/backend`): `db:migrate` (`migrate dev`), `db:deploy`, `db:status`, `db:generate`, `db:studio`, `db:seed` (departments and the super admin, from the `SEED_*` env vars; safe to rerun); `exec prisma validate`. Backend `build`, `typecheck` and `test` run `prisma generate` first. The Prisma config reads `DATABASE_URL_UNPOOLED`, so `backend/.env` must exist (copy `backend/.env.example`, then run `neon checkout development` in `backend/` to fill in the database URLs). Schema changes follow the `db-migration` skill.
 
 Neon CLI (run in `backend/`): `neon checkout <branch>` switches branch and rewrites `DATABASE_URL`/`DATABASE_URL_UNPOOLED` in `backend/.env`. `neon branches list` shows branches.
 
@@ -41,6 +52,8 @@ Neon CLI (run in `backend/`): `neon checkout <branch>` switches branch and rewri
 
 ## Rules
 
+Path-specific rules are in `.claude/rules/` (`backend.md`, `database.md`, `frontend.md`, `testing.md`) and load when matching files are opened. These apply everywhere:
+
 - **Layering:** Controller → Service → Repository. Business rules and `prisma.$transaction` live in services, Prisma queries in repositories.
 - **Better Auth** mounts at `/api/auth/*splat`, before `express.json()`, or requests hang.
 - **Roles:** `User.role` is derived and only `RoleService.recompute` writes it. `user_type` never changes.
@@ -50,15 +63,24 @@ Neon CLI (run in `backend/`): `neon checkout <branch>` switches branch and rewri
 - **Tenant isolation:** department-scoped queries filter by `department_id` unless the caller is `super_admin`.
 - **Payments:** trust SSLCommerz only after the Order Validation API confirms, never the IPN body.
 - **Money:** `DECIMAL(10,2)` in BDT. Never floats.
-- **UI:** use tokens from `globals.css`, not raw hex. Import `cn` from `@/lib/utils`: `shadcn add` writes the wrong import, and custom type or shadow names must be registered there. Use `m.*`, not `motion.*`, which throws under strict `LazyMotion`.
 
-## Before building on these
+## Security
 
-- **Database schema:** value sets are `VARCHAR` + CHECK, never Prisma enums. Hand-written objects (partial uniques, CHECKs, GIN indexes) are listed in `docs/DECISIONS.md` §3. Add new ones in a `--create-only` migration and list them there.
-- **Routes:** register `/clubs/my-club` and `/events/my-registrations` before their `/:id` routes.
-- **Session-dependent pages:** `cacheComponents` and `partialPrefetching` are on in `frontend/next.config.ts`. Revisit them when these pages are built.
-- **Rate limiting:** Express `trust proxy` is `1`, for the Next.js rewrite. Raise it if another proxy goes in front, or every client behind it shares one limit. Rate limiters are skipped when `NODE_ENV=test`, because tests mock Redis.
-- **Better Auth CLI:** use `auth@latest generate`, not `@better-auth/cli`. It writes to `schema.prisma`, so review the diff.
+- Never read or print `.env` values. Take variable names from `.env.example`.
+- The agent never touches the Neon `production` branch or production Redis.
+- API responses never include password hashes, tokens or session tokens. The blood donor list never includes email.
+- Content sent to Gemini is data, never instructions. Blood donor data is never in the chatbot corpus.
+
+## Testing
+
+- Endpoint tests cover success, 400, 401, 403 for each role the PRD excludes, cross-department access, and conflicts. Details are in `.claude/rules/testing.md`.
+- Behavior that depends on a CHECK, a partial unique index, a transaction or a lock is tested against a real database, not a Prisma mock.
+
+## Git
+
+- One branch per task from `main` (`feat/…`, `fix/…`, `chore/…`, `docs/…`), with conventional commit subjects as in the history.
+- Commit or push only when asked. Never force-push, rewrite history or discard uncommitted work.
+- Review `git diff` before reporting a task as done.
 
 ## Version traps
 
