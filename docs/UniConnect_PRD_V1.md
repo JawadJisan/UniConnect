@@ -1377,6 +1377,8 @@ Calls Gemini to generate a 2–3 sentence engaging event description. Returns su
 | `LOGIN` | Successful login |
 | `PASSWORD_CHANGED` | Password change or reset |
 | `ROLE_CHANGED` | Any `User.role` change made by `RoleService.recompute` |
+| `PROFILE_UPDATED` | Own profile edited through `PATCH /users/me` (changed fields only; DECISIONS D24) |
+| `AVATAR_UPDATED` | Own avatar replaced (DECISIONS D24) |
 | `ASSIGN_COMMITTEE_MEMBER` | New `ClubCommitteeMember` inserted |
 | `END_COMMITTEE_TERM` | `is_current` set to false |
 | `ASSIGN_DEPT_ADMIN` | New `DepartmentAdminTerm` inserted |

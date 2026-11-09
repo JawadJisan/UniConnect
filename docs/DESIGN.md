@@ -101,6 +101,15 @@ Spacing follows Tailwind's 4px grid. Use the standard breakpoints: `sm` 640, `md
 - Build mobile first. Pages must not scroll sideways at 375px. Wide tables scroll inside their own container, which `Table` provides.
 - Use `hairline` for a default border on any element, and `link` for text links, which are always underlined.
 
+**Signed-in workspace.** Every page under `app/(app)/` sits in `AppShell` (`app/(app)/_components/`):
+
+- **Sidebar**, `lg` and up: 232px (`w-58`), `bg-surface-1`, hairline on the right, sticky at full height. Wordmark, then the nav groups, then a footer with a 28px avatar, the name and a `micro-label` account tag ("STUDENT · CSE": role, then department when there is one).
+- **Top bar**: 48px (`h-12`), `bg-background`, hairline below, sticky. Location as "Group / Page" (the group hides below `sm`), then on the right a `CommandChipButton` with a real `Kbd` hint ("⌘K Go to", hidden below `md`), the avatar and name, and a ghost `sm` Sign out.
+- **Drawer**, below `lg`: the same nav and footer in a base-ui `Dialog` that slides in from the left (`w-72`, at most 85vw, `border-border-strong`, `shadow-overlay`, `--duration-slow`), opened by a ghost menu button in the top bar.
+- Pages use `container-wide` with `py-8`, an `h1` in `text-display-sm` and one `text-sm` `text-fg-secondary` line under it.
+- **Bento grid**: `grid items-start gap-4 lg:grid-cols-3`, cells placed with `col-span`. Single column below `lg`.
+- **Profile layout**: on `lg` the read-only identity cell is a sticky left column (one third, `top-16`), and the editable cards stack in the other two thirds. Keep one DOM order, so focus order matches what the eye reads at every width; never reorder with CSS.
+
 ## 6. Shape and depth
 
 | Token            | Value  | Use                             |
@@ -132,6 +141,10 @@ Everything is in `frontend/src/components/ui/`.
 | `MicroLabel`  | Metadata, group labels, table headers                                                                                                                                                                                                                                                              |
 | `CommandChip` | Pass `events`, not `/events`. `CommandChip` is a static label, `CommandChipButton` a real button                                                                                                                                                                                                   |
 | `Terminal`    | Display panel for logs and status output. `TerminalLine prompt` adds the `$`                                                                                                                                                                                                                       |
+| `Avatar`      | A picture, or up to two initials on `surface-3` in a full circle with a hairline. Titles such as "Dr." and "Md." are skipped. Decorative (empty alt), so always place it next to the name                                                                                                          |
+| `Toaster`     | Sonner, unstyled and drawn with tokens: `surface-2`, `border-strong`, `rounded-lg`, `shadow-float`, bottom right. Icon plus words carry the meaning. Mounted once in the root layout                                                                                                               |
+| `Skeleton`    | `surface-2` pulse, `aria-hidden`, shaped like the content it stands in for                                                                                                                                                                                                                         |
+| `ErrorState`  | A data view that failed to load: `FormAlert` (error) with an optional secondary `sm` Try again button                                                                                                                                                                                              |
 
 **Using the signature pieces well.** They add character, so keep them occasional:
 
@@ -145,6 +158,21 @@ Everything is in `frontend/src/components/ui/`.
 - `FormAlert` is form-level status: `tone` `error`, `success` or `info`. The icon and a title in words carry the meaning. Errors use `role="alert"`, the others `role="status"`.
 - `NativeSelect` is a styled native `<select>` for short fixed lists such as departments and blood groups, so phones keep their own picker.
 - On auth and other touch-first forms, inputs are `h-9`. Error messages name the problem and the fix.
+
+**Feedback.** Each kind of outcome has one home:
+
+- A completed action ("Profile saved.", "Profile photo updated.") gets a toast.
+- A problem with one field stays inline under that field, through `Field`.
+- A failure of the whole form goes in a `FormAlert` inside the form.
+- A data view uses `Skeleton` while loading and `ErrorState` when the load fails, not ad-hoc text.
+
+**Save buttons.** A form's Save is `secondary` and disabled while the form is clean, and becomes `default` only while it has unsaved changes. A ghost Reset appears next to it once the form is dirty. A form with no dirty state, such as change password, keeps a `secondary` submit. This keeps one indigo action on screen while several cards each have their own Save.
+
+**Panel.** `Panel` (`app/(app)/_components/`) is one bento cell: a `Card` labelled by its heading. The header row has the title (`h2`, `text-md`, medium) and, opposite it in the same row, an optional `SYS.*` `micro-label` tag, never above the title. An optional `text-fg-tertiary` description sits under the title. An optional footer row holds the cell's action, right-aligned under a hairline.
+
+**Workspace navigation.** One table (`nav.ts`) lists every signed-in destination in groups. Each item may name the roles that see it, and empty groups are dropped, so every role gets its own sidebar from the same source. Only routes that exist are listed. Group headings are `MicroLabel`s. Links are 32px (`h-8`) with a 16px icon. The current page has `aria-current="page"`, `bg-surface-3`, medium foreground text and a `brand-text` icon; the others are `fg-secondary` with a `fg-tertiary` icon and a `surface-2` hover. The ⌘K palette lists the same destinations.
+
+**Avatar drop zone.** The profile's photo control (`avatar-upload.tsx`) is a real button, so Enter and Space open the picker and a drop works too. It is a square with `rounded-xl` and a dashed `border-strong` on `surface-2`, which turns `brand-text` on `brand-tint` while a file is dragged over it. The shared type and size limits are checked before any upload, and a problem shows inline in words. A chosen file previews in place (a local blob URL) with ghost Cancel and Upload photo. While uploading, an overlay on the image shows a spinner and "Uploading…". Success is a toast. A caption under the zone states the accepted types and size.
 
 **Flow trail.** `FlowTrail` (`app/(auth)/_components/`) shows where the visitor stands on a multi-page flow: register → verify → sign in, or request → inbox → new password. Mono `text-xs` with chevrons between steps; the current step is `text-foreground` with `aria-current="step"` and a static `brand-text` underline. Tick only the steps the page can show happened: a cold `/login` ticks nothing. No motion, so it looks the same on every page and before hydration.
 
@@ -210,6 +238,7 @@ Later tools and reviews shouldn't "fix" these:
 - Mono uppercase micro-labels, used sparingly.
 - 14px as the default app text size, for density.
 - The `> ./uniconnect --init` chip above the home page heading, and the `SYS.MODULE.*` card labels. The project brief asks for both, even though Impeccable's rules discourage labels above headings.
+- The `SYS.*` tags on workspace panels (`SYS.PROFILE.*`, `SYS.ACCOUNT`, `SYS.ACCESS`), which extend the `SYS.MODULE.*` exception at the user's request. In the app they sit opposite the title in the panel's header row, never above it.
 
 ## 12. Using Impeccable
 
