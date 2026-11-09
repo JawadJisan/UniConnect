@@ -18,8 +18,8 @@ import { FormAlert } from '@/components/ui/form-alert';
 import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 import { api, toApiError } from '@/lib/api';
-import { describePassword, PASSWORD_HINT } from '../_components/password-hint';
-import { PasswordInput } from '../_components/password-input';
+import { describePassword, PASSWORD_HINT } from '@/components/password/password-hint';
+import { PasswordInput } from '@/components/password/password-input';
 
 export type AccountKind = 'student' | 'faculty';
 
