@@ -16,6 +16,9 @@ const envSchema = z
     // /api/auth/* is reached through its rewrite and cookies must be first-party.
     BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),
     BETTER_AUTH_URL: z.url().default('http://localhost:3000'),
+    // Per-email limits on sign-in, resend and reset (Redis). Only the Playwright API turns them
+    // off: it signs the same seeded accounts in many times a run. Refused in production.
+    AUTH_EMAIL_LIMITS: z.enum(['on', 'off']).default('on'),
 
     // SMTP. Optional in development: with no SMTP_HOST, emails are logged to the console.
     SMTP_HOST: z.string().optional(),
@@ -32,6 +35,13 @@ const envSchema = z
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;
+    if (value.AUTH_EMAIL_LIMITS === 'off') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['AUTH_EMAIL_LIMITS'],
+        message: 'AUTH_EMAIL_LIMITS cannot be off in production',
+      });
+    }
     const required = [
       'SMTP_HOST',
       'SMTP_USER',

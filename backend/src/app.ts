@@ -7,6 +7,7 @@ import { auth } from './lib/auth.js';
 import { prisma } from './lib/prisma.js';
 import { redis } from './lib/redis.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
+import { adminUserRouter } from './modules/admin-users/admin-user.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { departmentRouter } from './modules/departments/department.routes.js';
 import { userRouter } from './modules/users/user.routes.js';
@@ -28,6 +29,7 @@ app.use(express.json({ limit: '100kb' }));
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/departments', departmentRouter);
 app.use('/api/v1/users', userRouter);
+app.use('/api/v1/admin/users', adminUserRouter);
 
 // Liveness: the process is up. Touches no external service.
 app.get('/api/v1/health', (_req, res) => {

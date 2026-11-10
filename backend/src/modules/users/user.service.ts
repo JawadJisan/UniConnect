@@ -2,6 +2,7 @@ import {
   AUDIT_ACTIONS,
   updateStaffProfileSchema,
   updateStudentProfileSchema,
+  type MySessions,
   type UpdateProfileInput,
   type UpdateStudentProfileInput,
   type UserProfile,
@@ -90,6 +91,16 @@ export const userService = {
     const row = await userProfileRepository.findProfile(prisma, userId);
     if (!row) throw notFound('User not found.');
     return toProfile(row);
+  },
+
+  /** How many other devices are signed in (FR-AUTH-005.4). A count only, never tokens. */
+  async mySessions(userId: string, currentSessionId: string): Promise<MySessions> {
+    const others = await userProfileRepository.countOtherActiveSessions(
+      prisma,
+      userId,
+      currentSessionId,
+    );
+    return { other_sessions: others };
   },
 
   async updateMe(caller: Caller, body: unknown): Promise<UserProfile> {

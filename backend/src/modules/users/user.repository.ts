@@ -43,6 +43,12 @@ export const userProfileRepository = {
     return count > 0;
   },
 
+  countOtherActiveSessions(db: Db, userId: string, currentSessionId: string, now = new Date()) {
+    return db.session.count({
+      where: { userId, expiresAt: { gt: now }, NOT: { id: currentSessionId } },
+    });
+  },
+
   updateProfile(db: Db, id: string, data: Prisma.UserUncheckedUpdateInput) {
     return db.user.update({ where: { id }, data, select: PROFILE_SELECT });
   },
