@@ -14,9 +14,14 @@ const findUnique = jest.fn<Fn>();
 const update = jest.fn<Fn>();
 const count = jest.fn<Fn>();
 const auditCreate = jest.fn<Fn>();
+const sessionCount = jest.fn<Fn>();
 const uploadAvatar = jest.fn<(userId: string, buffer: Buffer) => Promise<string>>();
 
-const tx = { user: { findUnique, update, count }, auditLog: { create: auditCreate } };
+const tx = {
+  user: { findUnique, update, count },
+  auditLog: { create: auditCreate },
+  session: { count: sessionCount },
+};
 
 jest.unstable_mockModule('../src/lib/auth.js', () => ({
   auth: { api: { getSession } },
@@ -87,7 +92,15 @@ const WEBP = Buffer.concat([
 ]);
 
 beforeEach(() => {
-  for (const mock of [getSession, findUnique, update, count, auditCreate, uploadAvatar]) {
+  for (const mock of [
+    getSession,
+    findUnique,
+    update,
+    count,
+    auditCreate,
+    sessionCount,
+    uploadAvatar,
+  ]) {
     mock.mockReset();
   }
   getSession.mockResolvedValue({ headers: new Headers(), response: null });
@@ -158,6 +171,25 @@ describe('GET /api/v1/users/me', () => {
     findUnique.mockResolvedValue(null);
     const res = await request(app).get('/api/v1/users/me');
     expect(res.status).toBe(404);
+  });
+});
+
+describe('GET /api/v1/users/me/sessions', () => {
+  it('counts the other live sessions, excluding this one, and returns no tokens', async () => {
+    signedIn();
+    sessionCount.mockResolvedValue(2);
+
+    const res = await request(app).get('/api/v1/users/me/sessions');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ other_sessions: 2 });
+    const args = sessionCount.mock.calls[0]?.[0] as { where: Record<string, unknown> };
+    expect(args.where).toMatchObject({ userId: USER_ID, NOT: { id: 's1' } });
+    expect(args.where.expiresAt).toEqual({ gt: expect.any(Date) });
+  });
+
+  it('returns 401 without a session', async () => {
+    expect((await request(app).get('/api/v1/users/me/sessions')).status).toBe(401);
   });
 });
 

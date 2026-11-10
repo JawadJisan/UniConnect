@@ -153,3 +153,59 @@ export function sessionCookie(setCookie: string[] | string | undefined) {
   const raw = list.find((c) => c.includes('session_token='));
   return raw?.split(';')[0];
 }
+
+export interface SeedUser {
+  email: string;
+  name?: string;
+  userType: 'student' | 'faculty' | 'super_admin';
+  /** Defaults to user_type. Set it to fake a derived role without term rows. */
+  role?: string;
+  departmentId?: number | null;
+  studentId?: string;
+  isActive?: boolean;
+}
+
+/**
+ * Creates a verified user with PASSWORD straight in the database, the way prisma/seed.ts
+ * does. Registration can't create super admins, and moderator/dept_admin need term rows, so
+ * the admin and RBAC tests use this instead of the HTTP flow.
+ */
+export async function createUser(h: Harness, u: SeedUser) {
+  const { auth } = await import('../../src/lib/auth.js');
+  const hash = await (await auth.$context).password.hash(PASSWORD);
+  const student = u.userType === 'student';
+  const user = await h.prisma.user.create({
+    data: {
+      email: u.email,
+      name: u.name ?? 'Test User',
+      emailVerified: true,
+      isActive: u.isActive ?? true,
+      userType: u.userType,
+      role: u.role ?? u.userType,
+      departmentId: u.userType === 'super_admin' ? null : (u.departmentId ?? null),
+      bloodGroup: u.userType === 'super_admin' ? null : 'A+',
+      ...(student && {
+        academicSession: '2022-2023',
+        currentYear: 2,
+        currentSemester: 1,
+        studentId: u.studentId ?? `ID-${u.email.split('@')[0]}`,
+      }),
+    },
+    select: { id: true },
+  });
+  await h.prisma.account.create({
+    data: { userId: user.id, accountId: user.id, providerId: 'credential', password: hash },
+  });
+  return user.id;
+}
+
+/** Signs in with PASSWORD and returns the session cookie pair. */
+export async function signInCookie(h: Harness, email: string) {
+  const { default: request } = await import('supertest');
+  const res = await request(h.app)
+    .post('/api/auth/sign-in/email')
+    .set('Origin', ORIGIN)
+    .send({ email, password: PASSWORD });
+  if (res.status !== 200) throw new Error(`sign-in ${email} failed: ${res.status}`);
+  return sessionCookie(res.headers['set-cookie'])!;
+}
