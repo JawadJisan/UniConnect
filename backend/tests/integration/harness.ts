@@ -209,3 +209,36 @@ export async function signInCookie(h: Harness, email: string) {
   if (res.status !== 200) throw new Error(`sign-in ${email} failed: ${res.status}`);
   return sessionCookie(res.headers['set-cookie'])!;
 }
+
+/**
+ * The department's club, upserted and reset to the seed values (plus `overrides`) so each
+ * test starts from a known row. resetDatabase doesn't truncate clubs, which seed.ts owns.
+ */
+export async function clubFor(
+  h: Harness,
+  dept: string,
+  overrides: {
+    name?: string;
+    description?: string | null;
+    logoUrl?: string | null;
+    membershipFeeMonthly?: string | null;
+    membershipFeeYearly?: string | null;
+  } = {},
+) {
+  const deptId = await departmentId(h, dept);
+  const values = {
+    name: `${dept} Club`,
+    description: null,
+    logoUrl: null,
+    membershipFeeMonthly: null,
+    membershipFeeYearly: null,
+    ...overrides,
+  };
+  const club = await h.prisma.club.upsert({
+    where: { departmentId: deptId },
+    update: values,
+    create: { departmentId: deptId, ...values },
+    select: { id: true },
+  });
+  return club.id;
+}

@@ -19,7 +19,10 @@ import request from 'supertest';
 const auditFailure = { on: false };
 const uploadAvatar = jest.fn<(userId: string, buffer: Buffer) => Promise<string>>();
 
-jest.unstable_mockModule('../../src/lib/cloudinary.js', () => ({ uploadAvatar }));
+jest.unstable_mockModule('../../src/lib/cloudinary.js', () => ({
+  uploadAvatar,
+  uploadClubLogo: jest.fn(),
+}));
 jest.unstable_mockModule('../../src/repositories/audit.repository.js', () => ({
   auditRepository: {
     create(db: { auditLog: { create: (a: unknown) => Promise<unknown> } }, data: unknown) {

@@ -1,5 +1,6 @@
 import {
   ORIGIN,
+  clubFor,
   createUser,
   departmentId,
   loadHarness,
@@ -23,6 +24,9 @@ const { app } = h;
 const ALL: readonly Role[] = ROLES;
 const SUPER: readonly Role[] = ['super_admin'];
 const SOME_USER = '00000000-0000-4000-8000-000000000000';
+/** Club routes act on the CSE club, the department every matrix account belongs to. */
+const CLUB_EDITORS: readonly Role[] = ['dept_admin', 'super_admin'];
+let cseClub = 0;
 
 interface Policy {
   method: 'get' | 'patch' | 'post';
@@ -46,6 +50,11 @@ const POLICY: Policy[] = [
     body: { is_active: true },
   },
   { method: 'post', path: `/api/v1/admin/users/${SOME_USER}/recompute-role`, allowed: SUPER },
+  { method: 'get', path: '/api/v1/clubs', allowed: ALL },
+  { method: 'get', path: '/api/v1/clubs/my-club', allowed: ALL },
+  { method: 'get', path: '/api/v1/clubs/:club', allowed: ALL },
+  { method: 'patch', path: '/api/v1/clubs/:club', allowed: CLUB_EDITORS, body: {} },
+  { method: 'patch', path: '/api/v1/clubs/:club/logo', allowed: CLUB_EDITORS },
 ];
 
 const ACCOUNTS: Record<Role, { userType: 'student' | 'faculty' | 'super_admin' }> = {
@@ -61,6 +70,7 @@ const cookies = {} as Record<Role, string>;
 beforeAll(async () => {
   await resetDatabase(h);
   const cse = await departmentId(h, 'CSE');
+  cseClub = await clubFor(h, 'CSE');
   for (const role of ROLES) {
     const email = `${role}@rbac.test`;
     await createUser(h, { email, role, departmentId: cse, ...ACCOUNTS[role] });
@@ -69,7 +79,8 @@ beforeAll(async () => {
 });
 
 function call(p: Policy, cookie?: string) {
-  let req = request(app)[p.method](p.path).set('Origin', ORIGIN);
+  const path = p.path.replace(':club', String(cseClub));
+  let req = request(app)[p.method](path).set('Origin', ORIGIN);
   if (cookie) req = req.set('Cookie', cookie);
   return p.body ? req.send(p.body) : req;
 }
