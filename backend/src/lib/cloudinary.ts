@@ -30,6 +30,17 @@ const AVATAR_OPTIONS: UploadApiOptions = {
   allowed_formats: ['jpg', 'png', 'webp'],
 };
 
+const CLUB_LOGO_OPTIONS: UploadApiOptions = {
+  folder: 'uniconnect/club-logos',
+  resource_type: 'image',
+  // One logo per club, replaced in place like avatars.
+  overwrite: true,
+  invalidate: true,
+  // Logos keep their whole shape: fit inside 512x512, no crop.
+  transformation: [{ width: 512, height: 512, crop: 'limit' }],
+  allowed_formats: ['jpg', 'png', 'webp'],
+};
+
 function upload(buffer: Buffer, options: UploadApiOptions): Promise<UploadApiResponse> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
@@ -40,13 +51,16 @@ function upload(buffer: Buffer, options: UploadApiOptions): Promise<UploadApiRes
   });
 }
 
-/** Uploads a user's avatar and returns its HTTPS URL. */
-export async function uploadAvatar(userId: string, buffer: Buffer): Promise<string> {
+async function uploadImage(
+  buffer: Buffer,
+  options: UploadApiOptions,
+  label: string,
+): Promise<string> {
   if (!configured) {
     throw new AppError(503, 'UPLOAD_UNAVAILABLE', 'File uploads are not available right now.');
   }
   try {
-    const result = await upload(buffer, { ...AVATAR_OPTIONS, public_id: userId });
+    const result = await upload(buffer, options);
     return cloudinary.url(result.public_id, {
       secure: true,
       version: result.version,
@@ -55,7 +69,21 @@ export async function uploadAvatar(userId: string, buffer: Buffer): Promise<stri
     });
   } catch (err) {
     // Message only: never log the client config, which holds the API secret.
-    logger.error(`avatar upload for user ${userId} failed: ${(err as Error).message}`);
+    logger.error(`${label} upload failed: ${(err as Error).message}`);
     throw new AppError(502, 'UPLOAD_FAILED', 'The image could not be uploaded. Try again.');
   }
+}
+
+/** Uploads a user's avatar and returns its HTTPS URL. */
+export function uploadAvatar(userId: string, buffer: Buffer): Promise<string> {
+  return uploadImage(buffer, { ...AVATAR_OPTIONS, public_id: userId }, `avatar for user ${userId}`);
+}
+
+/** Uploads a club's logo and returns its HTTPS URL (DECISIONS D31). */
+export function uploadClubLogo(clubId: number, buffer: Buffer): Promise<string> {
+  return uploadImage(
+    buffer,
+    { ...CLUB_LOGO_OPTIONS, public_id: `club-${clubId}` },
+    `logo for club ${clubId}`,
+  );
 }

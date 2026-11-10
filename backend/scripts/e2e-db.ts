@@ -33,7 +33,19 @@ async function seed() {
     'TRUNCATE TABLE users, accounts, sessions, verifications, audit_logs RESTART IDENTITY CASCADE',
   );
   for (const dept of DEPARTMENTS) {
-    await prisma.department.upsert({ where: { name: dept.name }, update: {}, create: dept });
+    const { id } = await prisma.department.upsert({
+      where: { name: dept.name },
+      update: {},
+      create: dept,
+    });
+    // One club per department, reset on every seed so club edits in E2E are repeatable.
+    const club = { name: `${dept.name} Club`, description: dept.description };
+    const reset = { ...club, logoUrl: null, membershipFeeMonthly: null, membershipFeeYearly: null };
+    await prisma.club.upsert({
+      where: { departmentId: id },
+      update: reset,
+      create: { departmentId: id, ...club },
+    });
   }
   const cse = await prisma.department.findUniqueOrThrow({ where: { name: 'CSE' } });
   const hash = await (await auth.$context).password.hash(E2E_PASSWORD);
