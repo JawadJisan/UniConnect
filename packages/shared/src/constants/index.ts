@@ -36,6 +36,10 @@ export const AUDIT_ACTIONS = {
   USER_ACTIVATED: 'USER_ACTIVATED',
   /** A super_admin edited another user's profile through PATCH /admin/users/:id (D29). */
   USER_UPDATED_BY_ADMIN: 'USER_UPDATED_BY_ADMIN',
+  /** Club details or fees changed through PATCH /api/v1/clubs/:id (PRD §16). */
+  CLUB_UPDATED: 'CLUB_UPDATED',
+  /** A new logo through PATCH /api/v1/clubs/:id/logo (DECISIONS D31). */
+  CLUB_LOGO_UPDATED: 'CLUB_LOGO_UPDATED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
