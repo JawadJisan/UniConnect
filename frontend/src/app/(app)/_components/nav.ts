@@ -1,5 +1,12 @@
 import type { Role, UserType } from '@uniconnect/shared';
-import { LayoutDashboardIcon, UserRoundIcon, UsersIcon, type LucideIcon } from 'lucide-react';
+import {
+  HouseIcon,
+  LayoutDashboardIcon,
+  LayoutGridIcon,
+  UserRoundIcon,
+  UsersIcon,
+  type LucideIcon,
+} from 'lucide-react';
 
 export interface NavItem {
   label: string;
@@ -15,6 +22,11 @@ export interface NavGroup {
 }
 
 export const ADMIN_USERS_HREF = '/dashboard/admin/users';
+export const CLUBS_HREF = '/dashboard/clubs';
+export const MY_CLUB_HREF = '/dashboard/clubs/my-club';
+
+/** Roles that belong to a department, and so have a club of their own. */
+const DEPARTMENT_ROLES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
 
 /**
  * Every signed-in destination, grouped as the sidebar shows them. Only routes that exist are
@@ -27,6 +39,13 @@ export const NAV: NavGroup[] = [
     items: [
       { label: 'Overview', href: '/dashboard', Icon: LayoutDashboardIcon },
       { label: 'Profile', href: '/dashboard/profile', Icon: UserRoundIcon },
+    ],
+  },
+  {
+    label: 'Clubs',
+    items: [
+      { label: 'My club', href: MY_CLUB_HREF, Icon: HouseIcon, roles: DEPARTMENT_ROLES },
+      { label: 'All clubs', href: CLUBS_HREF, Icon: LayoutGridIcon },
     ],
   },
   {
@@ -85,7 +104,7 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
   ],
   faculty: [
-    { text: "View your department's club and its announcements" },
+    { text: "View your department's club and its announcements", href: MY_CLUB_HREF },
     { text: 'Browse events and register' },
     { text: 'Record your blood donations and answer blood requests' },
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
@@ -97,7 +116,7 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     { text: 'Everything your student or faculty account already allows' },
   ],
   dept_admin: [
-    { text: "Edit your department's club details and fees" },
+    { text: "Edit your department's club details and fees", href: MY_CLUB_HREF },
     { text: 'Assign committee members' },
     { text: 'Verify blood donations in your department' },
     { text: 'Manage department events and post department announcements' },
