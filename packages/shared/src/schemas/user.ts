@@ -94,3 +94,8 @@ export const userProfileSchema = z.object({
 });
 
 export type UserProfile = z.infer<typeof userProfileSchema>;
+
+/** GET /api/v1/users/me/sessions. A count only: session tokens never reach the browser. */
+export const mySessionsSchema = z.object({ other_sessions: z.number().int() });
+
+export type MySessions = z.infer<typeof mySessionsSchema>;
