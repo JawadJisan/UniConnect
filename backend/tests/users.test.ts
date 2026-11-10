@@ -30,7 +30,10 @@ jest.unstable_mockModule('../src/lib/prisma.js', () => ({
   prisma: { ...tx, $transaction: (fn: (t: typeof tx) => unknown) => fn(tx) },
 }));
 jest.unstable_mockModule('../src/lib/redis.js', () => ({ redis: {}, createRedis: jest.fn() }));
-jest.unstable_mockModule('../src/lib/cloudinary.js', () => ({ uploadAvatar }));
+jest.unstable_mockModule('../src/lib/cloudinary.js', () => ({
+  uploadAvatar,
+  uploadClubLogo: jest.fn(),
+}));
 
 const { app } = await import('../src/app.js');
 

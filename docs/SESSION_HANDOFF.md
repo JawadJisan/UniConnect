@@ -4,92 +4,80 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Close Phase 2: audit every FR-AUTH-001–008 and FR-USER-001–005 requirement against the code, then build what was missing. That was task 2.4 (FR-USER-005 admin users), task 2.5 (RBAC matrix), the FR-AUTH-005.4 "log out of all devices" UI, the FR-USER-002 "super_admin when assisting" edit, and review M1 (per-account sign-in limit). Branch `feat/admin-users`, cut from `feat/user-profile` (2026-11-10).
+Phase 3, clubs: FR-CLUB-001–004, end to end. Backend first, then the frontend; each was planned in plan mode and approved before it was built. Branch `feat/clubs`, cut from `development` (2026-11-10). **Nothing is committed.**
 
-## Audit result
+Your choices (structured questions):
 
-Before this session, FR-AUTH-001–008 and FR-USER-001–004 were built and tested. Missing: FR-USER-005 (no `/admin` routes, no UI), the assisting edit (no endpoint), the sessions UI, M1, and the RBAC matrix. All of these are now built. Your choices (structured questions):
-
-- add an admin profile edit
-- a count-only "Sign out other devices" card
-- 10 sign-ins per 15 minutes per email
+- **Logo:** a separate multipart `PATCH /clubs/:id/logo`. `PATCH /clubs/:id` stays JSON and refuses `logo_url` (D31).
+- **Seed:** this task seeds one club per department.
+- **Editing:** inline panels on the club page (the admin record layout), not a dialog or sheet.
 
 ## Completed work
 
-**Shared:**
+**Shared** (`schemas/club.ts`):
 
-- `schemas/pagination.ts`: D9 contract with `meta.total_pages`
-- `schemas/admin-user.ts`:
-  - list query (`.strict()`, coerced, sort whitelist, `search`)
-  - id param
-  - status body
-  - admin edit body
-  - summary, detail and recompute response schemas
-- `mySessionsSchema`
-- audit actions `USER_SUSPENDED`, `USER_ACTIVATED`, `USER_UPDATED_BY_ADMIN`
+- `clubIdParamSchema` and `clubListQuerySchema`
+- `updateClubSchema`: `.strict()`, `null` clears a field
+- `feeSchema`: a number or string, normalized to a 2-decimal string
+- `FEE_MESSAGE`
+- response schemas and `LOGO_FIELD`
+- audit actions `CLUB_UPDATED`, `CLUB_LOGO_UPDATED`
 
-**Backend:**
+**Backend** (`src/modules/clubs/*`, at `/api/v1/clubs`):
 
-- `src/modules/admin-users/*`: list, detail, `PATCH /:id` (assisting edit), `PATCH /:id/status`, `POST /:id/recompute-role` (D28, D29)
-- every write locks the user row (`roleRepository.lockUser`, D12)
-- suspend deletes all sessions in the same transaction
-- `validateRequest('query'|'params')` stores parsed values in `res.locals`
-- `GET /api/v1/users/me/sessions` (D30)
-- `PER_EMAIL_LIMITS['/sign-in/email']` (M1)
-- new env `AUTH_EMAIL_LIMITS` (default `on`, refused `off` in production; only the Playwright API sets `off`, because E2E signs the seeded accounts in more than 10 times per run). Added to `.env.example`.
+- **Routes:** list, `my-club` (registered before `/:id`), detail (current committee only, with no email or phone), `PATCH /:id`, `PATCH /:id/logo`.
+- **Edit check:** `requireRole(['dept_admin','super_admin'])`, then `requireDepartmentScope` on the club's department (403 across departments). The service then locks the club row and checks again.
+- **Audit:** changed fields only; a no-op writes nothing. Fees are strings.
+- **Shared code:** `lib/image.ts` (`isAllowedImage`), `imageUpload(field)` / `logoUpload`, `uploadClubLogo`.
+- **Seeds:** `seed.ts` and the E2E seed create `"<Dept> Club"` per department.
 
 **Frontend:**
 
-- `/dashboard/admin/users`: URL-driven filters, debounced search, sortable headers, pager, loading, empty and error states
-- `/dashboard/admin/users/[id]`: account cell, "Role" with its terms and Recompute, admin details form, status card with confirm dialog. Self and super-admin targets are disabled with a reason.
-- profile "Devices" card
-- the nav table has an Admin group (super_admin only)
-- the overview links the built capability
-- hooks: `use-admin-users.ts`, `use-departments.ts`, `useMySessions`/`useRevokeOtherSessions`
-
-**Impeccable:**
-
-- `detect` on the new files: `[]`
-- code-level audit against DESIGN.md and the workspace brief: no material fixes
-- DESIGN.md §7 gained "Admin list" and "Admin record"
-- no finish-reviewer subagent was run
+- **Pages:**
+  - `/dashboard/clubs`: a bento grid with `৳` fees in mono and a "Your department" badge
+  - `/dashboard/clubs/[id]`: the record layout. Read-only About on the left; on the right, Committee, then "Details & fees" and "Logo" for editors only.
+  - `/dashboard/clubs/my-club`: a super admin gets an info alert, not an error
+- **Hooks:** `use-clubs.ts` (`useClubs`, `useClub`, `useMyClub`, `useUpdateClub`, `useUploadClubLogo`).
+- **Helpers:** `lib/club-access.ts` (`canEditClub`, display only) and `formatBdt` (string math, no `Number()` on money).
+- **Edit form:** React Hook Form + `zodResolver`. Fee fields are validated with the shared `feeSchema` and `FEE_MESSAGE`. Only dirty fields are sent, `''` as `null`. Save follows DESIGN's secondary/default rule, with Discard.
+- **Drop zone:** `components/image-drop-zone.tsx`, extracted from the avatar upload, which now wraps it. The avatar tests passed unchanged.
+- **Nav:** a "Clubs" group, with "My club" for every role except `super_admin` and "All clubs" for everyone. Overview capabilities link to my-club.
 
 ## Files changed
 
-Run `git show --stat` on the session's commits for the full list. In short:
+`git status` lists them all. In short:
 
-- **shared:** `schemas/{pagination,admin-user,user}.ts`, `constants`, `index`
-- **backend:** `modules/admin-users/*`, `modules/users/*`, `lib/auth.ts`, `config/env.ts`, `middleware/validate.ts`, `repositories/role.repository.ts`, `app.ts`, `.env.example`, `scripts/e2e-db.ts` (seed user `student3@e2e.test`)
-- **backend tests:** `tests/admin-users.test.ts`, `tests/users.test.ts`, `tests/better-auth-config.test.ts`, `tests/integration/{admin-users,rbac-matrix}.int.test.ts`, `harness.ts` (`createUser`, `signInCookie`)
-- **frontend:** `app/(app)/dashboard/admin/users/**`, `profile/_components/{sessions-card,profile-view}.tsx`, `_components/nav.ts`, `dashboard/_components/overview-view.tsx`, `hooks/*`, `playwright.config.ts`
-- **frontend tests:** `tests/app/{admin-users.test.tsx,nav.test.ts}`, `tests/mocks/auth-client.ts`, `e2e/{admin.spec.ts,profile.spec.ts,db.ts}`
+- **shared:** `schemas/club.ts`, `constants`, `index`
+- **backend:** `modules/clubs/*`, `lib/{image,cloudinary}.ts`, `middleware/upload.ts`, `modules/users/user.service.ts`, `app.ts`, `prisma/seed.ts`, `scripts/e2e-db.ts`; tests `clubs.test.ts`, `integration/{clubs.int,rbac-matrix.int,users.int}.test.ts`, `harness.ts`, `users.test.ts`
+- **frontend:** `app/(app)/dashboard/clubs/**`, `components/image-drop-zone.tsx`, `hooks/use-clubs.ts`, `lib/{club-access,format}.ts`, `_components/nav.ts`, `profile/_components/avatar-upload.tsx`; tests `tests/app/{clubs.test.tsx,nav.test.ts}`, `e2e/{clubs,shell}.spec.ts`
 - **docs:**
-  - `DECISIONS.md` (D9 resolved, D12 partly built, D28–D30, M1 fixed)
-  - `UniConnect_PRD_V1.md` (FR-AUTH-005.4 wording, FR-USER-005 assisting edit and search, §16 `USER_UPDATED_BY_ADMIN`, API table rows; approved with the plan)
-  - `TASKS.md` (2.4, 2.5, 2.6 done; Phase 2 complete), `DESIGN.md`, `CLAUDE.md`, this file
+  - `DECISIONS.md`: D31; D18 partly built; issues 16 and 6; PRD #1, #2, #21 built as default
+  - `UniConnect_PRD_V1.md`: FR-CLUB-003, §16, API table
+  - `DESIGN.md`: Image drop zone, Club directory, Club record, §11 tags
+  - `TASKS.md`, `CLAUDE.md`, this file
 
 ## Database/migration changes
 
-None. No schema change, and no command touched `development` or `production`. The Neon `test` branch was used by the integration tests and E2E.
+None. No command touched `development` or `production`. Integration tests and E2E used the Neon `test` branch.
 
 ## Commands executed and results
 
-- `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: pass
-- `pnpm test`: backend 10 suites 140/140, frontend 13 suites 162/162
-- `pnpm --filter @uniconnect/backend test:integration`: 7 suites 139/139 (the new suites alone: 78/78)
-- `pnpm e2e`: **not completed.** It was stopped at your request after 18 of 25 tests.
-  - 16 passed: all of `auth.spec.ts`, the profile tests through "faculty see no academic fields", and three of the five admin tests (recompute, 375px no horizontal scroll, student has no access).
-  - 2 failed:
-    1. The suspend test passed every step up to the suspended login, then `getByText('Suspended').first()` matched the hidden `<option>` of the Status filter. The locator is now scoped to the table row. The fix has **not** been re-run.
-    2. The semester test failed only because test 1 stopped before re-activating `student3`.
-  - Not reached: the new "Sign out other devices" profile test, the password test and `shell.spec.ts`.
-  - **Run `pnpm e2e` before relying on the admin E2E.**
+- `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: pass.
+- `pnpm test`: backend 11 suites, 162/162; frontend 14 suites, 199/199.
+  - Earlier in the session one frontend run failed once in `admin-users.test.tsx`, while the integration suite was running alongside it. It passed when rerun.
+- `pnpm --filter @uniconnect/backend test:integration`: 8 suites, 215/215, including the RBAC matrix (1028 s).
+- `pnpm e2e`: first run 24 passed, 3 failed.
+  - **The failures:** `shell.spec.ts` asserted exactly 2 sidebar links. The Clubs group made it 4. The super-admin case was already stale from Phase 2's Users link, but last session's run never reached it.
+  - **The fix:** the spec now asserts the exact link names per user.
+  - **Rerun:** `shell.spec.ts` alone, 5/5. In the full run, `clubs.spec.ts` (3/3) and the admin specs (5/5) passed, which verifies the previous session's admin fix.
+- `impeccable detect` on the new UI files: `[]`.
 
 ## Not covered
 
-- moderator and dept_admin in E2E: they are covered by the RBAC matrix in integration tests, which write the role column directly
-- a real Cloudinary upload: still the open manual check
-- OpenAPI entries: task 1c
+- A dept_admin in E2E: the E2E seed has none (task 1b). Unit tests and the backend RBAC matrix cover the role.
+- A real Cloudinary logo upload: a manual check.
+- A manual `pnpm dev` check on the `development` branch: `db:seed` there needs your approval, and that branch has no departments yet.
+- OpenAPI entries: task 1c.
 
 ## Current blockers
 
@@ -97,22 +85,23 @@ None.
 
 ## Approved decisions and ADR links
 
-D28, D29, D30, D9, D12 (partly), M1. No ADR.
+D31 (new), D18 (partly built). No ADR.
 
 ## Risks and unresolved questions
 
-- `AUTH_EMAIL_LIMITS` must stay unset (`on`) in every deployed environment. `env.ts` refuses `off` only when `NODE_ENV=production` (L3 still applies).
-- The list's `findMany` and `count` are not one snapshot, so `total` can be off by one row under concurrent writes.
+- The dept-admin edit check compares the club's department with the caller's `department_id`. The Phase 3 term endpoints must enforce `term.department_id = user.department_id` (D31).
+- Committee rows are ordered by position name alphabetically, not by rank. Revisit with the committee endpoints.
+- The directory asks for `limit=100` and has no pager. That's fine for one club per department.
+- The integration suite takes about 17 minutes against Neon, and E2E about 10.
 - Still open from before:
-  - H1 (trusted client IP), L3–L6, I1–I6
-  - the manual Cloudinary check
+  - H1, L3–L6, I1–I6
   - D16
-  - the `development` database branch has no departments
+  - the `development` branch has no departments
 
 ## Exact next task
 
-Task 1b: factories, the rest of D12 (term endpoints), seeding one club per department (D18), and a moderator/dept_admin in the E2E seed. Then Phase 3 (clubs, committee, admin terms) after the PRD decisions it needs (D10: #1–3, 5, 6, 10, 11, 22).
+Commit `feat/clubs` when you ask. Then Phase 3 continues: committee endpoints (assign, edit, end term) and dept admin terms. They need PRD decisions #3, #10, #11 and the D12 user-row lock. Task 1b (factories, a demo dept_admin and moderator in the E2E seed) would let E2E cover editors.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md`, `docs/DECISIONS.md` D28–D30 and `docs/TASKS.md`. Plan task 1b in plan mode and wait for approval.
+> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` D12, D31. Plan the committee and dept-admin-term endpoints (Phase 3) in plan mode, after confirming PRD decisions #3, #10, #11.
