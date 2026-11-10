@@ -4,131 +4,92 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Tasks 2.3 (FR-USER, backend and frontend), 2.2 (route protection, role-aware navigation) and the shell and E2E parts of 1d, on branch `feat/user-profile` from `main` (2026-11-09).
+Close Phase 2: audit every FR-AUTH-001–008 and FR-USER-001–005 requirement against the code, then build what was missing. That was task 2.4 (FR-USER-005 admin users), task 2.5 (RBAC matrix), the FR-AUTH-005.4 "log out of all devices" UI, the FR-USER-002 "super_admin when assisting" edit, and review M1 (per-account sign-in limit). Branch `feat/admin-users`, cut from `feat/user-profile` (2026-11-10).
 
-Earlier the same day, `feat/auth-pages` was pushed and merged as PR #1 (merge commit `faa75a1`).
+## Audit result
 
-Nothing from this session is committed.
+Before this session, FR-AUTH-001–008 and FR-USER-001–004 were built and tested. Missing: FR-USER-005 (no `/admin` routes, no UI), the assisting edit (no endpoint), the sessions UI, M1, and the RBAC matrix. All of these are now built. Your choices (structured questions):
 
-## Source documents reviewed
+- add an admin profile edit
+- a count-only "Sign out other devices" card
+- 10 sign-ins per 15 minutes per email
 
-- `CLAUDE.md`, `docs/TASKS.md`, the previous handoff, `docs/DECISIONS.md` (§2, §3, §7)
-- PRD §5 (capability matrix), §7 FR-USER-001 to 005, §16 (audit actions)
-- `schema.prisma` (`User`, `Account`) and the `db_invariants` migration
-- `docs/DESIGN.md`, `PRODUCT.md`, the auth surface brief
-- Impeccable references: `new-work.md`, `operate.md`, `mode-operate.md`, `craft-floor.md`
-- Next 16 docs bundled in `node_modules/next/dist/docs`: proxy, authentication, instant navigation, `instant` segment config
+## Completed work
 
-## Completed work (verified)
+**Shared:**
 
-**Backend (first half of the session; plan approved):**
+- `schemas/pagination.ts`: D9 contract with `meta.total_pages`
+- `schemas/admin-user.ts`:
+  - list query (`.strict()`, coerced, sort whitelist, `search`)
+  - id param
+  - status body
+  - admin edit body
+  - summary, detail and recompute response schemas
+- `mySessionsSchema`
+- audit actions `USER_SUSPENDED`, `USER_ACTIVATED`, `USER_UPDATED_BY_ADMIN`
 
-- `GET/PATCH /api/v1/users/me` and `PATCH /api/v1/users/me/avatar` (multer + Cloudinary)
-- the change-password route stays Better Auth's
-- D24 is in `DECISIONS.md`; details are in its row and in git
+**Backend:**
 
-**Frontend (second plan, approved, with your choices):** sidebar + top bar shell, honest overview, sonner toasts, RTL + Playwright.
+- `src/modules/admin-users/*`: list, detail, `PATCH /:id` (assisting edit), `PATCH /:id/status`, `POST /:id/recompute-role` (D28, D29)
+- every write locks the user row (`roleRepository.lockUser`, D12)
+- suspend deletes all sessions in the same transaction
+- `validateRequest('query'|'params')` stores parsed values in `res.locals`
+- `GET /api/v1/users/me/sessions` (D30)
+- `PER_EMAIL_LIMITS['/sign-in/email']` (M1)
+- new env `AUTH_EMAIL_LIMITS` (default `on`, refused `off` in production; only the Playwright API sets `off`, because E2E signs the seeded accounts in more than 10 times per run). Added to `.env.example`.
 
-- **Route protection (D25):**
-  - `src/proxy.ts` makes an optimistic cookie check on `/dashboard/*` and sends anyone without a cookie to `/login?next=…`
-  - `RequireSession` (client) handles session pending, signed out, 401, 403 (suspended screen), other errors (retry) and sign-out
-  - login and `RedirectIfSignedIn` follow a same-origin `?next=` (`lib/safe-next.ts`)
-- **Shell** (`app/(app)/_components/`):
-  - 232px sidebar from one role-filtered nav table (only routes that exist), a "Group / Page" top bar, a ⌘K "Go to" palette, avatar plus sign out, a mobile drawer and a skip link
-- **Overview** (`/dashboard`):
-  - greeting, with titles like Dr./Md. skipped
-  - a profile checklist by user type
-  - an Account card
-  - per-role capabilities from PRD §5, marked "Not built yet", with no links
-- **Profile** (`/dashboard/profile`):
-  - sticky identity card with the avatar drop zone: preview before upload, shared limits checked before the network, an uploading overlay and inline errors
-  - Personal details (only dirty fields sent; an empty phone sends `null`)
-  - Academic details (students only; 409 `STUDENT_ID_TAKEN` shown on its field)
-  - Password through `authClient.changePassword`
-  - Saves are secondary until their form is dirty
-- **New primitives:** `components/ui/{sonner,avatar,skeleton,error-state}.tsx`
-- **Shared and helper modules:** `hooks/use-me.ts`, `hooks/use-command-k.ts`, `lib/{format,names,safe-next}.ts`
-- **Moved:** `PasswordInput` and the password hint to `components/password/`
-- **Impeccable:**
-  - structure picked by you; the roll was skipped (the brief records `seed: none (skipped, structure user-pinned)`)
-  - surface brief: `frontend/.impeccable/surfaces/src-app-app-layout-tsx.md`
-  - `impeccable detect`: `[]`
-  - finish reviewer: `fix` with 7 items, then 6 resolved, then the last one resolved → **`ship`**. That covers those 7 fixes, not a fresh full review.
-  - the documenter updates `docs/DESIGN.md` (see "Files changed")
-- **Two real bugs found by E2E and fixed:**
-  - sign-out from the workspace landed on `/login?next=/dashboard`, because the guard redirected before the shell's redirect to `/`. Sign-out now lives in the guard.
-  - after login with `?next=`, `RedirectIfSignedIn` and the login view raced. Both now use `safeNext`.
-- **Next dev error fixed:** "Could not validate … instant navigation" on both pages. The pages render only behind the client guard, so they export `instant = false`, as low in the tree as possible (recorded in D25).
+**Frontend:**
 
-**Correction to the previous handoff:** it blamed Windows Application Control for the frontend Jest failure ("Must use import to load ES Module"). After you unblocked SWC, the error remained. The real cause was a Jest transform cache poisoned while SWC was blocked. `npx jest --clearCache` fixed it.
+- `/dashboard/admin/users`: URL-driven filters, debounced search, sortable headers, pager, loading, empty and error states
+- `/dashboard/admin/users/[id]`: account cell, "Role" with its terms and Recompute, admin details form, status card with confirm dialog. Self and super-admin targets are disabled with a reason.
+- profile "Devices" card
+- the nav table has an Admin group (super_admin only)
+- the overview links the built capability
+- hooks: `use-admin-users.ts`, `use-departments.ts`, `useMySessions`/`useRevokeOtherSessions`
+
+**Impeccable:**
+
+- `detect` on the new files: `[]`
+- code-level audit against DESIGN.md and the workspace brief: no material fixes
+- DESIGN.md §7 gained "Admin list" and "Admin record"
+- no finish-reviewer subagent was run
 
 ## Files changed
 
-- **Backend:**
-  - `src/modules/users/*`, `src/lib/cloudinary.ts`, `src/middleware/upload.ts` (new)
-  - `src/middleware/validate.ts`, `src/config/env.ts`, `src/app.ts`
-  - `scripts/e2e-db.ts` (new); `package.json` scripts `dev:e2e` and `e2e:db`
-  - tests: `tests/users.test.ts`, `tests/integration/users.int.test.ts`
-- **Shared:** `src/schemas/user.ts` (new), `src/constants/index.ts`, `src/index.ts`
-- **Frontend:**
-  - `src/proxy.ts`, `src/app/(app)/**`, the new UI primitives, hooks and libs listed above
-  - `src/app/layout.tsx` (Toaster), `site-header.tsx` (Dashboard link, shared ⌘K hook)
-  - auth: `login-view.tsx`, `redirect-if-signed-in.tsx`, imports in `register-form.tsx` and `reset-password-view.tsx`
-  - `package.json` (`sonner`); `playwright.config.ts`, `e2e/*`
-  - tests: `tests/app/*`, `tests/auth/login.test.tsx`, `tests/mocks/auth-client.ts`
-- **Root:** `package.json` (`pnpm e2e`), `pnpm-lock.yaml` (sonner)
-- **Docs:**
-  - `docs/DECISIONS.md` (D24–D27), `docs/TASKS.md` (1d, 2.2, 2.3 done)
-  - `docs/UniConnect_PRD_V1.md` §16 (two audit actions), `CLAUDE.md`, `PRODUCT.md` (Status)
-  - `docs/DESIGN.md` (by the documenter), this file
+Run `git show --stat` on the session's commits for the full list. In short:
+
+- **shared:** `schemas/{pagination,admin-user,user}.ts`, `constants`, `index`
+- **backend:** `modules/admin-users/*`, `modules/users/*`, `lib/auth.ts`, `config/env.ts`, `middleware/validate.ts`, `repositories/role.repository.ts`, `app.ts`, `.env.example`, `scripts/e2e-db.ts` (seed user `student3@e2e.test`)
+- **backend tests:** `tests/admin-users.test.ts`, `tests/users.test.ts`, `tests/better-auth-config.test.ts`, `tests/integration/{admin-users,rbac-matrix}.int.test.ts`, `harness.ts` (`createUser`, `signInCookie`)
+- **frontend:** `app/(app)/dashboard/admin/users/**`, `profile/_components/{sessions-card,profile-view}.tsx`, `_components/nav.ts`, `dashboard/_components/overview-view.tsx`, `hooks/*`, `playwright.config.ts`
+- **frontend tests:** `tests/app/{admin-users.test.tsx,nav.test.ts}`, `tests/mocks/auth-client.ts`, `e2e/{admin.spec.ts,profile.spec.ts,db.ts}`
+- **docs:**
+  - `DECISIONS.md` (D9 resolved, D12 partly built, D28–D30, M1 fixed)
+  - `UniConnect_PRD_V1.md` (FR-AUTH-005.4 wording, FR-USER-005 assisting edit and search, §16 `USER_UPDATED_BY_ADMIN`, API table rows; approved with the plan)
+  - `TASKS.md` (2.4, 2.5, 2.6 done; Phase 2 complete), `DESIGN.md`, `CLAUDE.md`, this file
 
 ## Database/migration changes
 
-None. No schema change, and no command touched `development` or `production`.
-
-The Neon `test` branch was used by the integration tests and E2E. `e2e-db.ts seed` truncates its user tables. You approved this with the plan.
+None. No schema change, and no command touched `development` or `production`. The Neon `test` branch was used by the integration tests and E2E.
 
 ## Commands executed and results
 
-All from the repo root unless noted:
+- `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: pass
+- `pnpm test`: backend 10 suites 140/140, frontend 13 suites 162/162
+- `pnpm --filter @uniconnect/backend test:integration`: 7 suites 139/139 (the new suites alone: 78/78)
+- `pnpm e2e`: **not completed.** It was stopped at your request after 18 of 25 tests.
+  - 16 passed: all of `auth.spec.ts`, the profile tests through "faculty see no academic fields", and three of the five admin tests (recompute, 375px no horizontal scroll, student has no access).
+  - 2 failed:
+    1. The suspend test passed every step up to the suspended login, then `getByText('Suspended').first()` matched the hidden `<option>` of the Status filter. The locator is now scoped to the table row. The fix has **not** been re-run.
+    2. The semester test failed only because test 1 stopped before re-activating `student3`.
+  - Not reached: the new "Sign out other devices" profile test, the password test and `shell.spec.ts`.
+  - **Run `pnpm e2e` before relying on the admin E2E.**
 
-- `pnpm typecheck`: all three packages Done
-- `pnpm lint`: pass
-- `pnpm format:check`: pass
-- `pnpm test` (last run, after every code change): backend 9 suites, 108/108; frontend 12 suites, 142/142
-- `pnpm --filter @uniconnect/backend test:integration`: 5 suites, 61/61. It ran after the frontend work and before the review fix rounds, which changed only frontend files.
-- `pnpm e2e`:
-  - the first two runs found the bugs above
-  - after the fixes: **three consecutive runs of 18/18** (4.5, 3.9 and 3.9 minutes)
-  - after review fix round 1: **18/18** (3.2 minutes)
-  - the final copy-only change (`ROLE_AS_PERSON`) was covered by unit tests and a recapture, not another E2E run; no E2E test asserts that heading
-- Env passthrough probe: blank `SMTP_HOST` and `CLOUDINARY_*` survive pnpm, `with-test-db` and dotenv as empty values, so the E2E API sends no email and makes no upload
-- Screenshots in `frontend/.impeccable/review/` (gitignored), made with a scratch Playwright config outside the repo:
-  - overview and profile for student and faculty at 1440 and 390
-  - the drawer and form error states
-  - avatar focus, error, preview and uploading
-  - this overwrote the earlier landing-page `desktop.png` and `mobile.png` there
+## Not covered
 
-## Tests executed and results
-
-As above. New tests:
-
-- **Frontend unit:**
-  - `tests/app/nav.test.ts`: role nav for 5 roles, `safeNext`, initials, greeting, role phrasing
-  - `shell.test.tsx`: guard states, sidebar, sign-out, drawer, Ctrl+K
-  - `profile.test.tsx`: cards per user type, dirty-only PATCH, null phone, validation, server details, 409, toast
-  - `avatar-password.test.tsx`
-  - `redirect.test.tsx`
-  - login `next` cases
-- **E2E:**
-  - `auth.spec.ts`: register → verify gate → login; `next` round trip; wrong password; redirect off auth pages; sign-out; forged cookie; uniform reset answer
-  - `profile.spec.ts`: edits persist, 409 inline, client validation, avatar type check/preview/stubbed upload, faculty without academic fields, change password signs out the other device and only the new password works
-  - `shell.spec.ts`: 3 user types, palette, 375px drawer, no horizontal scroll
-
-**Not covered by E2E:**
-
-- moderator and dept_admin, which are unit-tested only, because the seed can't create them without term rows (task 1b)
-- a real Cloudinary upload, which needs your OK; the plan's one manual upload is still not done
+- moderator and dept_admin in E2E: they are covered by the RBAC matrix in integration tests, which write the role column directly
+- a real Cloudinary upload: still the open manual check
+- OpenAPI entries: task 1c
 
 ## Current blockers
 
@@ -136,27 +97,22 @@ None.
 
 ## Approved decisions and ADR links
 
-D24 to D27 (`docs/DECISIONS.md`). No ADR.
+D28, D29, D30, D9, D12 (partly), M1. No ADR.
 
 ## Risks and unresolved questions
 
-- **Manual Cloudinary check is still open:** run one real upload and confirm the URL renders. It needs your OK.
-- **E2E rate limits:** E2E runs the API with `NODE_ENV=test`, so the IP rate limiters are off. Per-email limits still use real Upstash Redis.
-- **E2E and dev server:** E2E and a normal `pnpm dev` can run at the same time on different ports. `next dev` may still refuse a second instance in the same directory; that wasn't tested.
-- **Static shell:** the workspace pages opt out of instant-navigation validation (`instant = false`). Server-side session reads would let them prerender a real shell; that's a later optimization.
-- **Still open from before:** H1 (trusted client IP), M1, L3–L6, I1–I6 (`DECISIONS.md` §7); the `development` branch has no departments; D16 (shell motif).
-- **pnpm notice:** pnpm printed "Agent skills awaiting approval: @tanstack/react-table". Nothing was approved.
+- `AUTH_EMAIL_LIMITS` must stay unset (`on`) in every deployed environment. `env.ts` refuses `off` only when `NODE_ENV=production` (L3 still applies).
+- The list's `findMany` and `count` are not one snapshot, so `total` can be off by one row under concurrent writes.
+- Still open from before:
+  - H1 (trusted client IP), L3–L6, I1–I6
+  - the manual Cloudinary check
+  - D16
+  - the `development` database branch has no departments
 
 ## Exact next task
 
-1. Review the diff and commit on `feat/user-profile`, if you ask.
-2. With approval, run the manual Cloudinary upload.
-3. Task 1b: factories, the `RoleService` lock (D12), and seeding clubs and a moderator/dept_admin, so E2E can cover every role.
-
-## Acceptance criteria
-
-For 1b, as in `docs/TASKS.md`. For the Cloudinary check: one real JPEG uploaded through `/dashboard/profile` is saved as a `res.cloudinary.com` URL and renders after a reload.
+Task 1b: factories, the rest of D12 (term endpoints), seeding one club per department (D18), and a moderator/dept_admin in the E2E seed. Then Phase 3 (clubs, committee, admin terms) after the PRD decisions it needs (D10: #1–3, 5, 6, 10, 11, 22).
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` D24–D27. Commit `feat/user-profile` if asked, then plan task 1b in plan mode and wait for approval.
+> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md`, `docs/DECISIONS.md` D28–D30 and `docs/TASKS.md`. Plan task 1b in plan mode and wait for approval.

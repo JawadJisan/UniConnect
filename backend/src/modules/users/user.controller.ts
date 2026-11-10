@@ -14,6 +14,12 @@ export const userController = {
     res.json({ success: true, data: await userService.getMe(callerOf(req).id) });
   },
 
+  async mySessions(req: Request, res: Response) {
+    const sessionId = req.auth?.session.id;
+    if (!sessionId) throw unauthorized();
+    res.json({ success: true, data: await userService.mySessions(callerOf(req).id, sessionId) });
+  },
+
   async updateMe(req: Request, res: Response) {
     const data = await userService.updateMe(callerOf(req), req.body);
     res.json({ success: true, message: 'Profile updated.', data });

@@ -32,6 +32,10 @@ export const AUDIT_ACTIONS = {
   /** Self-service edit of PATCH /api/v1/users/me (DECISIONS D24). */
   PROFILE_UPDATED: 'PROFILE_UPDATED',
   AVATAR_UPDATED: 'AVATAR_UPDATED',
+  USER_SUSPENDED: 'USER_SUSPENDED',
+  USER_ACTIVATED: 'USER_ACTIVATED',
+  /** A super_admin edited another user's profile through PATCH /admin/users/:id (D29). */
+  USER_UPDATED_BY_ADMIN: 'USER_UPDATED_BY_ADMIN',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

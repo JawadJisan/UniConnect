@@ -1,7 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AVATAR_FIELD, type UpdateProfileInput, type UserProfile } from '@uniconnect/shared';
+import {
+  AVATAR_FIELD,
+  type MySessions,
+  type UpdateProfileInput,
+  type UserProfile,
+} from '@uniconnect/shared';
 import { api, toApiError } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 
@@ -69,10 +74,41 @@ export function useUploadAvatar() {
  * the user's other sessions.
  */
 export function useChangePassword() {
+  const client = useQueryClient();
   return useMutation({
     mutationFn: async (body: { currentPassword: string; newPassword: string }) => {
       const { error } = await authClient.changePassword(body);
       if (error) throw toApiError(error);
     },
+    // The other devices were just signed out, so their count is stale.
+    onSuccess: () => client.invalidateQueries({ queryKey: MY_SESSIONS_KEY }),
+  });
+}
+
+export const MY_SESSIONS_KEY = ['me', 'sessions'] as const;
+
+/** GET /api/v1/users/me/sessions: how many other devices are signed in (a count, no tokens). */
+export function useMySessions() {
+  return useQuery({
+    queryKey: MY_SESSIONS_KEY,
+    queryFn: async () => {
+      try {
+        return (await api.get<Envelope<MySessions>>('/v1/users/me/sessions')).data.data;
+      } catch (err) {
+        throw toApiError(err);
+      }
+    },
+  });
+}
+
+/** Better Auth's POST /api/auth/revoke-other-sessions (PRD FR-AUTH-005.4). This device stays. */
+export function useRevokeOtherSessions() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await authClient.revokeOtherSessions();
+      if (error) throw toApiError(error);
+    },
+    onSuccess: () => client.invalidateQueries({ queryKey: MY_SESSIONS_KEY }),
   });
 }

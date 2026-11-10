@@ -34,3 +34,16 @@ export function validateBody(schema: z.ZodType): RequestHandler {
     next();
   };
 }
+
+/**
+ * Parses req.query or req.params with a Zod schema and stores the result in res.locals, since
+ * Express 5 makes req.query a read-only getter. Controllers read `res.locals.query` / `.params`.
+ */
+export function validateRequest(part: 'query' | 'params', schema: z.ZodType): RequestHandler {
+  return (req, res, next) => {
+    const result = parseOrError(schema, req[part]);
+    if (!result.ok) return next(result.error);
+    res.locals[part] = result.data;
+    next();
+  };
+}

@@ -64,6 +64,19 @@ async function seed() {
       studentId: 'CSE-E2E/002',
     },
     {
+      // Suspended and edited by admin.spec.ts; no other spec signs in as this account.
+      name: 'Nadia Islam',
+      email: 'student3@e2e.test',
+      userType: 'student',
+      role: 'student',
+      departmentId: cse.id,
+      bloodGroup: 'O-',
+      academicSession: '2024-2025',
+      currentYear: 1,
+      currentSemester: 1,
+      studentId: 'CSE-E2E/003',
+    },
+    {
       name: 'Dr. Karim Hossain',
       email: 'faculty@e2e.test',
       userType: 'faculty',

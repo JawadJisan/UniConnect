@@ -1,5 +1,5 @@
 import type { Role, UserType } from '@uniconnect/shared';
-import { LayoutDashboardIcon, UserRoundIcon, type LucideIcon } from 'lucide-react';
+import { LayoutDashboardIcon, UserRoundIcon, UsersIcon, type LucideIcon } from 'lucide-react';
 
 export interface NavItem {
   label: string;
@@ -14,6 +14,8 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+export const ADMIN_USERS_HREF = '/dashboard/admin/users';
+
 /**
  * Every signed-in destination, grouped as the sidebar shows them. Only routes that exist are
  * listed (frontend rule). Club, event, blood and admin pages join here with their `roles`
@@ -26,6 +28,10 @@ export const NAV: NavGroup[] = [
       { label: 'Overview', href: '/dashboard', Icon: LayoutDashboardIcon },
       { label: 'Profile', href: '/dashboard/profile', Icon: UserRoundIcon },
     ],
+  },
+  {
+    label: 'Admin',
+    items: [{ label: 'Users', href: ADMIN_USERS_HREF, Icon: UsersIcon, roles: ['super_admin'] }],
   },
 ];
 
@@ -61,39 +67,45 @@ export const USER_TYPE_LABEL: Record<UserType, string> = {
   super_admin: 'Super admin',
 };
 
+export interface Capability {
+  text: string;
+  /** The page that does it, once it exists. Without one it shows as "Not built yet". */
+  href?: string;
+}
+
 /**
- * What each role will be able to do, from the PRD §5 capability matrix. Shown on the overview
- * as plain text marked "Not built yet": no links until the pages exist.
+ * What each role will be able to do, from the PRD �5 capability matrix. Shown on the overview:
+ * built ones link to their page, the rest are plain text marked "Not built yet".
  */
-export const ROLE_CAPABILITIES: Record<Role, string[]> = {
+export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   student: [
-    "Join your department's club with a monthly or yearly membership",
-    'Browse events and register, including other departments’ public events',
-    'Record your blood donations and answer blood requests',
-    'Ask the chatbot about clubs, events and rules you can see',
+    { text: "Join your department's club with a monthly or yearly membership" },
+    { text: 'Browse events and register, including other departments� public events' },
+    { text: 'Record your blood donations and answer blood requests' },
+    { text: 'Ask the chatbot about clubs, events and rules you can see' },
   ],
   faculty: [
-    "View your department's club and its announcements",
-    'Browse events and register',
-    'Record your blood donations and answer blood requests',
-    'Ask the chatbot about clubs, events and rules you can see',
+    { text: "View your department's club and its announcements" },
+    { text: 'Browse events and register' },
+    { text: 'Record your blood donations and answer blood requests' },
+    { text: 'Ask the chatbot about clubs, events and rules you can see' },
   ],
   moderator: [
-    "Create, publish and cancel your club's events",
-    'Check attendees in and export registrations',
-    'Post announcements to your club',
-    'Everything your student or faculty account already allows',
+    { text: "Create, publish and cancel your club's events" },
+    { text: 'Check attendees in and export registrations' },
+    { text: 'Post announcements to your club' },
+    { text: 'Everything your student or faculty account already allows' },
   ],
   dept_admin: [
-    "Edit your department's club details and fees",
-    'Assign committee members',
-    'Verify blood donations in your department',
-    'Manage department events and post department announcements',
+    { text: "Edit your department's club details and fees" },
+    { text: 'Assign committee members' },
+    { text: 'Verify blood donations in your department' },
+    { text: 'Manage department events and post department announcements' },
   ],
   super_admin: [
-    'Manage every user: suspend, activate and repair roles',
-    'Assign department admin terms',
-    'Verify blood donations in any department',
-    'Read the audit log',
+    { text: 'Manage every user: suspend, activate and repair roles', href: ADMIN_USERS_HREF },
+    { text: 'Assign department admin terms' },
+    { text: 'Verify blood donations in any department' },
+    { text: 'Read the audit log' },
   ],
 };

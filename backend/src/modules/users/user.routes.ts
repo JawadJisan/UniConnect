@@ -11,4 +11,5 @@ userRouter.use(requireAuth);
 
 userRouter.get('/me', userController.getMe);
 userRouter.patch('/me', userController.updateMe);
+userRouter.get('/me/sessions', userController.mySessions);
 userRouter.patch('/me/avatar', avatarUpload, userController.updateAvatar);

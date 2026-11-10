@@ -6,14 +6,27 @@ import { activeHref, NAV, visibleNav, type NavGroup } from '@/app/(app)/_compone
 import { safeNext } from '@/lib/safe-next';
 
 describe('workspace navigation', () => {
-  it.each(ROLES)('gives %s the pages that exist today', (role) => {
-    const items = visibleNav(role).flatMap((g) => g.items.map((i) => i.href));
-    expect(items).toEqual(['/dashboard', '/dashboard/profile']);
+  it.each(ROLES.filter((r) => r !== 'super_admin'))(
+    'gives %s the pages that exist today',
+    (role) => {
+      const items = visibleNav(role).flatMap((g) => g.items.map((i) => i.href));
+      expect(items).toEqual(['/dashboard', '/dashboard/profile']);
+    },
+  );
+
+  it('adds the Admin group with Users for super admins only', () => {
+    expect(visibleNav('super_admin').map((g) => g.label)).toEqual(['You', 'Admin']);
+    expect(visibleNav('super_admin').flatMap((g) => g.items.map((i) => i.href))).toEqual([
+      '/dashboard',
+      '/dashboard/profile',
+      '/dashboard/admin/users',
+    ]);
+    expect(activeHref('/dashboard/admin/users/abc')).toBe('/dashboard/admin/users');
   });
 
   it('shows a role-limited item only to its roles, and drops groups left empty', () => {
     const nav: NavGroup[] = [
-      ...NAV,
+      NAV[0]!,
       {
         label: 'Admin',
         items: [

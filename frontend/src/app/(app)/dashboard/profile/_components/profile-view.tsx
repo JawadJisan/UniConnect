@@ -5,11 +5,12 @@ import { AcademicForm } from './academic-form';
 import { IdentityCard } from './identity-card';
 import { PasswordForm } from './password-form';
 import { PersonalForm } from './personal-form';
+import { SessionsCard } from './sessions-card';
 
 /**
  * The profile: the identity card (photo and read-only account facts) holds a sticky left
  * column on wide screens, and the editable cards stack on the right in the order a phone reads
- * the whole page: personal, academic (students only, PRD FR-USER-002), password. One DOM
+ * the whole page: personal, academic (students only, PRD FR-USER-002), password, devices. One DOM
  * order, so focus order and visual order always agree. Each form resets itself after its own
  * save, so saving one card never discards unsaved edits in another.
  */
@@ -34,6 +35,7 @@ export function ProfileView() {
           <PersonalForm profile={profile} />
           {student ? <AcademicForm profile={profile} /> : null}
           <PasswordForm />
+          <SessionsCard />
         </div>
       </div>
     </div>

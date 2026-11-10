@@ -52,8 +52,13 @@ async function consume(key: string, window: number, max: number) {
     : { allowed: true, retryAfter: null };
 }
 
-/** Per-email limits from PRD FR-AUTH-003.4 and FR-AUTH-007.5, on top of the per-IP ones. */
-const PER_EMAIL_LIMITS: Record<string, { window: number; max: number }> = {
+/**
+ * Per-email limits from PRD FR-AUTH-003.4 and FR-AUTH-007.5, on top of the per-IP ones. Sign-in
+ * is limited per account too (review M1), so guesses spread over forged client IPs still hit
+ * one bucket. The 15-minute window keeps a deliberate lock-out short.
+ */
+export const PER_EMAIL_LIMITS: Record<string, { window: number; max: number }> = {
+  '/sign-in/email': { window: 15 * 60, max: 10 },
   '/send-verification-email': { window: 5 * 60, max: 1 },
   '/request-password-reset': { window: 60 * 60, max: 3 },
 };
@@ -206,7 +211,7 @@ const options = {
       // registration) also run this hook and must not use up the user's resend budget.
       const limit = PER_EMAIL_LIMITS[ctx.path];
       const email = typeof ctx.body?.email === 'string' ? ctx.body.email.trim().toLowerCase() : '';
-      if (limit && email && ctx.request) {
+      if (limit && email && ctx.request && env.AUTH_EMAIL_LIMITS === 'on') {
         let result;
         try {
           result = await consume(`rl:email:${ctx.path}:${email}`, limit.window, limit.max);

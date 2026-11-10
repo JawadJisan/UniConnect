@@ -408,7 +408,7 @@ super_admin > dept_admin > moderator > faculty / student
 1. Session lifetime: 7 days, extended by activity at most once per day (Better Auth `expiresIn` / `updateAge`).
 2. The session cookie is `httpOnly`, `Secure` in production, `SameSite=Lax`.
 3. The client simply sends the cookie; an expired session returns 401 and the client redirects to `/login`.
-4. Idle timeout, "remember me" and "log out of all devices" are decided in Section 25 (decision 19). V1 default: 7-day sliding session; "log out of all devices" is available through revoking the user's sessions.
+4. Idle timeout, "remember me" and "log out of all devices" are decided in Section 25 (decision 19). V1 default: 7-day sliding session; "log out of all devices" is the profile's "Sign out other devices" action (Better Auth `/api/auth/revoke-other-sessions`; DECISIONS D30).
 
 ---
 
@@ -558,10 +558,13 @@ router.patch('/clubs/:id', requireRole(['dept_admin', 'super_admin']), requireDe
 - `GET /api/v1/admin/users/:id` — get user detail
 - `PATCH /api/v1/admin/users/:id/status` — suspend / activate (`is_active`). Suspending also revokes all of the user's sessions.
 - `POST /api/v1/admin/users/:id/recompute-role` — re-run `RoleService.recompute` for one user (repair tool, idempotent, audited)
+- `PATCH /api/v1/admin/users/:id` — correct a user's details when assisting (FR-USER-002): name, phone, blood group, department, and academic fields for students. A department change is refused (409) while the user holds a current term or an active/pending membership (DECISIONS D29)
 
 **Auth:** `super_admin` only
 
-**Pagination:** `?page=1&limit=20&sort=created_at&order=desc`
+**Pagination:** `?page=1&limit=20&sort=created_at&order=desc`, plus `?search=` on name or email. Response `{ success, data, meta: { page, limit, total, total_pages } }` (DECISIONS D9, D28).
+
+Super admins cannot suspend or edit themselves or another super admin through these routes.
 
 > **Removed in V1.2:** `PATCH /admin/users/:id/role` (direct role override). The role is derived from `user_type` and active terms; a manual override would be silently reverted at the next recompute. To change someone's role, change the committee or admin term that grants it.
 
@@ -1395,6 +1398,7 @@ Calls Gemini to generate a 2–3 sentence engaging event description. Returns su
 | `BLOOD_DONATION_VERIFIED` | `BloodDonation.verified → true` |
 | `USER_SUSPENDED` | `User.is_active → false` |
 | `USER_ACTIVATED` | `User.is_active → true` |
+| `USER_UPDATED_BY_ADMIN` | A super admin edited another user through `PATCH /admin/users/:id` (changed fields only; DECISIONS D29) |
 
 **Log Entry:**
 
@@ -1512,10 +1516,12 @@ Business endpoints are prefixed with `/api/v1`. Authentication is handled by Bet
 | GET | `/users/me` | Session | View own profile |
 | PATCH | `/users/me` | Session | Update own profile |
 | PATCH | `/users/me/avatar` | Session | Upload avatar |
+| GET | `/users/me/sessions` | Session | Count of other signed-in devices (FR-AUTH-005.4, DECISIONS D30) |
 | GET | `/admin/users` | super_admin | List all users |
 | GET | `/admin/users/:id` | super_admin | User detail |
 | PATCH | `/admin/users/:id/status` | super_admin | Suspend / activate |
 | POST | `/admin/users/:id/recompute-role` | super_admin | Recompute effective role (repair) |
+| PATCH | `/admin/users/:id` | super_admin | Correct a user's details (assisting) |
 
 ### Clubs
 

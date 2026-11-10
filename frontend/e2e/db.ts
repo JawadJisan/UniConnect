@@ -9,6 +9,7 @@ export const PASSWORD = 'Str0ng!pass';
 export const USERS = {
   student: { email: 'student@e2e.test', name: 'Ayesha Rahman' },
   student2: { email: 'student2@e2e.test', name: 'Tanvir Ahmed' },
+  student3: { email: 'student3@e2e.test', name: 'Nadia Islam' },
   faculty: { email: 'faculty@e2e.test', name: 'Dr. Karim Hossain' },
   admin: { email: 'admin@e2e.test', name: 'System Admin' },
 } as const;
