@@ -603,12 +603,14 @@ Shortcut — resolves club by `User.department_id`. For `super_admin` (no depart
 **Auth:** `dept_admin` (own dept), `super_admin`
 **Tables:** `Club`
 
-**Editable Fields:** `name`, `description`, `logo_url`, `membership_fee_monthly`, `membership_fee_yearly`
+**Editable Fields:** `name`, `description`, `membership_fee_monthly`, `membership_fee_yearly` (JSON; fees as 2-decimal amounts, `null` clears)
+
+**Logo:** `PATCH /api/v1/clubs/:id/logo`, multipart field `logo`, same auth. The logo is never set from a client-supplied URL (DECISIONS D31).
 
 **System Actions:**
 1. Verify requesting user is dept_admin of the club's department (or super_admin).
-2. Upload new logo if provided (Cloudinary).
-3. Update fields. Log in `AuditLog` (old and new fee values included).
+2. Upload new logo through the `/logo` route (Cloudinary).
+3. Update fields. Log in `AuditLog` (old and new fee values included): `CLUB_UPDATED`, or `CLUB_LOGO_UPDATED` for the logo.
 
 ---
 
@@ -1392,6 +1394,7 @@ Calls Gemini to generate a 2–3 sentence engaging event description. Returns su
 | `PAYMENT_COMPLETED` | Validation API confirmed a payment (actor = system) |
 | `PAYMENT_FAILED` | Payment failed or validation mismatch (actor = system) |
 | `CLUB_UPDATED` | Club details or fees changed |
+| `CLUB_LOGO_UPDATED` | Club logo replaced through `PATCH /clubs/:id/logo` |
 | `EVENT_CREATED` | New event inserted |
 | `EVENT_PUBLISHED` | Event `status → published` |
 | `EVENT_CANCELLED` | Event `status → cancelled` |
@@ -1531,6 +1534,7 @@ Business endpoints are prefixed with `/api/v1`. Authentication is handled by Bet
 | GET | `/clubs/my-club` | Session | Own dept's club |
 | GET | `/clubs/:id` | Session | Club detail |
 | PATCH | `/clubs/:id` | dept_admin, super_admin | Edit club |
+| PATCH | `/clubs/:id/logo` | dept_admin, super_admin | Upload club logo |
 
 ### Memberships
 
