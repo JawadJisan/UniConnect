@@ -29,13 +29,17 @@ The single task tracker. One row per task, one task per session where possible. 
 
 ## Phase 2: Authentication, profiles and authorization
 
-| ID  | Task                                                                                                                                                   | Status  | Blocked by                                       |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------ |
-| 2.1 | Auth pages: login, student and faculty registration, verify result, forgot and reset password                                                          | Done    | 2026-11-08, branch `feat/auth-pages` (D20)       |
-| 2.2 | Route protection and role-aware navigation                                                                                                             | Done    | 2026-11-09, branch `feat/user-profile` (D25)     |
-| 2.3 | `GET/PATCH /users/me` (FR-USER-001/002), avatar upload (FR-USER-003), change password (FR-USER-004): API, overview and profile pages                   | Done    | 2026-11-09, branch `feat/user-profile` (D24–D27) |
-| 2.4 | Admin users: list, detail, suspend/activate with session revocation, recompute-role (FR-USER-005). Suspend must delete sessions (`DECISIONS.md` §7 M2) | Planned |                                                  |
-| 2.5 | RBAC matrix test scaffold (role × endpoint, from one policy table)                                                                                     | Planned |                                                  |
+| ID  | Task                                                                                                                                                   | Status | Blocked by                                              |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ | ------------------------------------------------------- |
+| 2.1 | Auth pages: login, student and faculty registration, verify result, forgot and reset password                                                          | Done   | 2026-11-08, branch `feat/auth-pages` (D20)              |
+| 2.2 | Route protection and role-aware navigation                                                                                                             | Done   | 2026-11-09, branch `feat/user-profile` (D25)            |
+| 2.3 | `GET/PATCH /users/me` (FR-USER-001/002), avatar upload (FR-USER-003), change password (FR-USER-004): API, overview and profile pages                   | Done   | 2026-11-09, branch `feat/user-profile` (D24–D27)        |
+| 2.4 | Admin users: list, detail, suspend/activate with session revocation, recompute-role (FR-USER-005). Suspend must delete sessions (`DECISIONS.md` §7 M2) | Done   | 2026-11-10, branch `feat/admin-users` (D28, D29)        |
+| 2.5 | RBAC matrix test scaffold (role × endpoint, from one policy table)                                                                                     | Done   | 2026-11-10, `tests/integration/rbac-matrix.int.test.ts` |
+
+| 2.6 | Phase 2 gaps: "Sign out other devices" (FR-AUTH-005.4), admin assisting edit (FR-USER-002), per-account sign-in limit (review M1) | Done | 2026-11-10 (D29, D30, §7 M1) |
+
+**Phase 2 is complete:** every FR-AUTH-001–008 and FR-USER-001–005 requirement has its API, frontend and tests. Not done: OpenAPI entries (task 1c, not started).
 
 ## Phases 3–10
 
