@@ -5,10 +5,13 @@ import { expectNoHorizontalScroll, logIn } from './helpers';
 // The signed-in shell for each user type: navigation, account tag, palette and small screens.
 
 test.describe('workspace shell', () => {
-  for (const [who, user, tag] of [
-    ['student', USERS.student, 'Student · CSE'],
-    ['faculty', USERS.faculty, 'Faculty · CSE'],
-    ['super admin', USERS.admin, 'Super admin'],
+  // The sidebar comes from one role-aware table (nav.ts): everyone with a department gets
+  // "My club"; only super admins get the Admin group.
+  const DEPARTMENT_LINKS = ['Overview', 'Profile', 'My club', 'All clubs'];
+  for (const [who, user, tag, links] of [
+    ['student', USERS.student, 'Student · CSE', DEPARTMENT_LINKS],
+    ['faculty', USERS.faculty, 'Faculty · CSE', DEPARTMENT_LINKS],
+    ['super admin', USERS.admin, 'Super admin', ['Overview', 'Profile', 'All clubs', 'Users']],
   ] as const) {
     test(`${who}: overview, navigation and account tag`, async ({ page }) => {
       await logIn(page, user.email);
@@ -17,7 +20,7 @@ test.describe('workspace shell', () => {
         'aria-current',
         'page',
       );
-      await expect(nav.getByRole('link')).toHaveCount(2);
+      await expect(nav.getByRole('link')).toHaveText(links);
       await expect(page.getByRole('complementary').getByText(tag, { exact: true })).toBeVisible();
       await expect(page.getByRole('region', { name: 'Your profile' })).toBeVisible();
 

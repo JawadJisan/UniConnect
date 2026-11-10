@@ -10,15 +10,21 @@ describe('workspace navigation', () => {
     'gives %s the pages that exist today',
     (role) => {
       const items = visibleNav(role).flatMap((g) => g.items.map((i) => i.href));
-      expect(items).toEqual(['/dashboard', '/dashboard/profile']);
+      expect(items).toEqual([
+        '/dashboard',
+        '/dashboard/profile',
+        '/dashboard/clubs/my-club',
+        '/dashboard/clubs',
+      ]);
     },
   );
 
-  it('adds the Admin group with Users for super admins only', () => {
-    expect(visibleNav('super_admin').map((g) => g.label)).toEqual(['You', 'Admin']);
+  it('gives super admins All clubs but no My club, and the Admin group with Users', () => {
+    expect(visibleNav('super_admin').map((g) => g.label)).toEqual(['You', 'Clubs', 'Admin']);
     expect(visibleNav('super_admin').flatMap((g) => g.items.map((i) => i.href))).toEqual([
       '/dashboard',
       '/dashboard/profile',
+      '/dashboard/clubs',
       '/dashboard/admin/users',
     ]);
     expect(activeHref('/dashboard/admin/users/abc')).toBe('/dashboard/admin/users');
@@ -44,6 +50,8 @@ describe('workspace navigation', () => {
     expect(activeHref('/dashboard')).toBe('/dashboard');
     expect(activeHref('/dashboard/profile')).toBe('/dashboard/profile');
     expect(activeHref('/dashboard/profile/extra')).toBe('/dashboard/profile');
+    expect(activeHref('/dashboard/clubs/my-club')).toBe('/dashboard/clubs/my-club');
+    expect(activeHref('/dashboard/clubs/3')).toBe('/dashboard/clubs');
     expect(activeHref('/elsewhere')).toBeUndefined();
   });
 });
