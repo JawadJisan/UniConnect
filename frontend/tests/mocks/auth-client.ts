@@ -25,6 +25,7 @@ export const authClient = {
   requestPasswordReset: jest.fn(ok),
   resetPassword: jest.fn(ok),
   changePassword: jest.fn(ok),
+  revokeOtherSessions: jest.fn(ok),
 };
 
 export const VERIFY_CALLBACK_URL = '/login?verified=true';
@@ -40,6 +41,7 @@ export function resetAuthClient() {
     authClient.requestPasswordReset,
     authClient.resetPassword,
     authClient.changePassword,
+    authClient.revokeOtherSessions,
   ]) {
     fn.mockReset();
     fn.mockImplementation(ok);

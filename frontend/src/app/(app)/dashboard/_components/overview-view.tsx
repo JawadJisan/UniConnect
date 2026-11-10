@@ -146,16 +146,32 @@ export function OverviewView() {
           id="access-title"
           title={`What you can do as ${ROLE_AS_PERSON[profile.role]}`}
           tag="SYS.ACCESS"
-          description="These parts of UniConnect are not built yet. They will appear in the sidebar as they ship."
+          description="Parts that are built link to their page. The rest will appear in the sidebar as they ship."
           className="lg:col-span-3"
         >
           <ul className="grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
-            {ROLE_CAPABILITIES[profile.role].map((line) => (
-              <li key={line} className="flex items-start justify-between gap-3 text-sm">
-                <span className="text-fg-secondary">{line}</span>
-                <Badge variant="secondary" className="shrink-0">
-                  Not built yet
-                </Badge>
+            {ROLE_CAPABILITIES[profile.role].map((cap) => (
+              <li key={cap.text} className="flex items-start justify-between gap-3 text-sm">
+                {cap.href ? (
+                  <>
+                    <Link
+                      href={cap.href}
+                      className="text-foreground underline-offset-4 hover:underline focus-visible:underline"
+                    >
+                      {cap.text}
+                    </Link>
+                    <Badge variant="success" className="shrink-0">
+                      Available
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-fg-secondary">{cap.text}</span>
+                    <Badge variant="secondary" className="shrink-0">
+                      Not built yet
+                    </Badge>
+                  </>
+                )}
               </li>
             ))}
           </ul>
