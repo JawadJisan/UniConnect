@@ -135,3 +135,26 @@ test('changing the password works, and only the new one signs in', async ({ page
   await expect(page.getByText('Email or password is incorrect.')).toBeVisible();
   await logIn(page, USERS.student2.email, NEW);
 });
+
+test('"Sign out other devices" ends the other session and keeps this one', async ({
+  page,
+  browser,
+}) => {
+  const other = await browser.newContext();
+  const otherPage = await other.newPage();
+  await logIn(otherPage, USERS.faculty.email);
+
+  await logIn(page, USERS.faculty.email);
+  await page.goto('/dashboard/profile');
+  const devices = page.getByRole('region', { name: 'Devices' });
+  await expect(devices.getByText(/and \d+ other devices?\./)).toBeVisible();
+  await devices.getByRole('button', { name: 'Sign out other devices' }).click();
+  await expect(page.getByText('Signed out of your other devices.')).toBeVisible();
+  await expect(devices.getByText('Only this device is signed in.')).toBeVisible();
+
+  await otherPage.goto('/dashboard');
+  await expect(otherPage).toHaveURL(/\/login\?next=/);
+  await other.close();
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
+});

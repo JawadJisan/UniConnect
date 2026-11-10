@@ -48,6 +48,9 @@ export default defineConfig({
         CLOUDINARY_CLOUD_NAME: '',
         CLOUDINARY_API_KEY: '',
         CLOUDINARY_API_SECRET: '',
+        // The suite signs the seeded accounts in many times per run; the per-account limits
+        // (10 sign-ins per 15 minutes) would otherwise answer 429. Integration tests cover them.
+        AUTH_EMAIL_LIMITS: 'off',
       },
     },
     {
