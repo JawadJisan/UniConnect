@@ -659,7 +659,8 @@ Returns all clubs with department name, logo, and membership fee.
 - Step 1: read `tran_id` and `val_id` from the IPN. Load the `PaymentTransaction` by `transaction_id`.
 - Step 2: call the SSLCommerz **Order Validation API** with `val_id` and the store credentials. Accept the payment only if the validation status is `VALID` or `VALIDATED` **and** the returned `tran_id`, amount and currency match the stored row.
 - Step 3 (success), in one transaction and **idempotent**: `UPDATE payment_transactions SET payment_status = 'completed', val_id, bank_tran_id, validated_at, payment_gateway_response, payment_method WHERE transaction_id = $1 AND payment_status = 'pending'`. If a row was updated: set `ClubMembership.status = 'active'` and recompute its `start_date` / `end_date` from the activation day, write `MEMBERSHIP_PURCHASED` and `PAYMENT_COMPLETED` audit entries (actor = system), and queue the receipt email. If zero rows were updated the IPN is a duplicate: return 200 with no side effects.
-- Step 4 (failure or mismatch): set `payment_status = 'failed'`, set the `pending` membership to `cancelled`, write `PAYMENT_FAILED`.
+- Step 4 (failure or mismatch): set `payment_status = 'failed'`, set the `pending` membership to `cancelled`, write `PAYMENT_FAILED`. Only a validation answer whose `tran_id` matches the stored row can fail a payment; an IPN with no `val_id`, or one whose `val_id` belongs to another transaction, changes nothing (DECISIONS D32).
+- Built with a mock gateway until the merchant account exists (`PAYMENT_GATEWAY=mock`, refused in production; DECISIONS D32).
 - The browser `success_url` / `fail_url` pages are **display only**; they never grant membership.
 
 **Constraint:** One active membership per `(user_id, club_id)`, enforced by a partial unique index. Renewal only allowed after current expires or is cancelled (see FR-MEM-002 for the early-renewal exception).
@@ -672,7 +673,7 @@ Returns all clubs with department name, logo, and membership fee.
 **Endpoint:** `POST /api/v1/memberships/:id/renew`
 **Auth:** any authenticated user with `user_type = 'student'`
 
-Creates a **new** `ClubMembership` row (does not overwrite old) with `status = 'pending'` and follows the same payment flow as FR-MEM-001. On activation, `start_date = old end_date + 1 day` when the previous membership is still active, otherwise today. New payment transaction required. To keep the one-active-row rule, an early renewal is activated only when the previous row has expired (the daily job marks it `expired`); until then the new row stays `pending` and the student is told the renewal starts on the old end date.
+Creates a **new** `ClubMembership` row (does not overwrite old) with `status = 'pending'` and follows the same payment flow as FR-MEM-001. Only an `active` or `expired` membership can be renewed (409 otherwise). On activation, `start_date = old end_date + 1 day` when the previous membership is still active, otherwise today. New payment transaction required. To keep the one-active-row rule, a paid early renewal becomes **`scheduled`** (ADR 0001, DECISIONS D11) and the daily `expire-memberships` job makes it `active` once the previous row has expired. One `pending` or `scheduled` row per user per club (partial unique index); a second renewal while one is scheduled is a 409.
 
 ---
 
@@ -682,7 +683,7 @@ Creates a **new** `ClubMembership` row (does not overwrite old) with `status = '
 **Endpoint:** `PATCH /api/v1/memberships/:id/cancel`
 **Auth:** owner (`user_type = student`), `dept_admin` (dept), `super_admin` (any)
 
-Sets `ClubMembership.status = 'cancelled'`. No refund in V1. Writes `MEMBERSHIP_CANCELLED`.
+Sets `ClubMembership.status = 'cancelled'` for a `pending`, `scheduled` or `active` row (409 otherwise); a `pending` row's payment becomes `failed`. No refund in V1. Writes `MEMBERSHIP_CANCELLED`. Anyone else (another student, faculty, another department's admin) gets 404, so a membership's existence is not revealed (DECISIONS D32).
 
 ---
 
@@ -692,7 +693,7 @@ Sets `ClubMembership.status = 'cancelled'`. No refund in V1. Writes `MEMBERSHIP_
 **Endpoint:** `GET /api/v1/memberships/my`
 **Auth:** any authenticated user with `user_type = 'student'`
 
-Returns all memberships (pending, active, expired, cancelled) for the authenticated student.
+Returns all memberships (pending, scheduled, active, expired, cancelled) for the authenticated student.
 
 ---
 
@@ -1392,7 +1393,11 @@ Calls Gemini to generate a 2–3 sentence engaging event description. Returns su
 | `MEMBERSHIP_PURCHASED` | `ClubMembership` becomes `active` after validated payment |
 | `MEMBERSHIP_CANCELLED` | `ClubMembership` cancelled |
 | `PAYMENT_COMPLETED` | Validation API confirmed a payment (actor = system) |
-| `PAYMENT_FAILED` | Payment failed or validation mismatch (actor = system) |
+| `PAYMENT_FAILED` | Payment failed or validation mismatch, or the gateway could not open a session (actor = system) |
+| `MEMBERSHIP_SCHEDULED` | A paid early renewal became `scheduled` (actor = system; ADR 0001) |
+| `MEMBERSHIP_ACTIVATED` | The daily job started a `scheduled` renewal (actor = system) |
+| `MEMBERSHIP_EXPIRED` | The daily job expired an `active` membership past its end date (actor = system) |
+| `CHECKOUT_EXPIRED` | An unpaid checkout older than 30 minutes was cancelled (stale job, or replaced by a new checkout) |
 | `CLUB_UPDATED` | Club details or fees changed |
 | `CLUB_LOGO_UPDATED` | Club logo replaced through `PATCH /clubs/:id/logo` |
 | `EVENT_CREATED` | New event inserted |

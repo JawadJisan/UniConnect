@@ -4,80 +4,89 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Phase 3, clubs: FR-CLUB-001–004, end to end. Backend first, then the frontend; each was planned in plan mode and approved before it was built. Branch `feat/clubs`, cut from `development` (2026-11-10). **Nothing is committed.**
+Phase 4: memberships and payments (FR-MEM-001–005), end to end. The backend came first, then the frontend; each was planned in plan mode and approved before it was built. SSLCommerz is replaced by a mock behind a gateway interface. Branch `feat/memberships`, cut from `development` on 2026-11-11, committed and merged into `development` at your request.
 
-Your choices (structured questions):
+Your choices:
 
-- **Logo:** a separate multipart `PATCH /clubs/:id/logo`. `PATCH /clubs/:id` stays JSON and refuses `logo_url` (D31).
-- **Seed:** this task seeds one club per department.
-- **Editing:** inline panels on the club page (the admin record layout), not a dialog or sheet.
+- **D11:** a `scheduled` status and a partial unique index on pending-or-scheduled rows (ADR 0001).
+- **Jobs now:** expiry (which also starts scheduled renewals), stale-checkout cleanup and the receipt email. The reconcile job waits for the real gateway.
+- **Migration:** approved separately for `development` and for `test`.
 
 ## Completed work
 
-**Shared** (`schemas/club.ts`):
+### Backend (D32)
 
-- `clubIdParamSchema` and `clubListQuerySchema`
-- `updateClubSchema`: `.strict()`, `null` clears a field
-- `feeSchema`: a number or string, normalized to a 2-decimal string
-- `FEE_MESSAGE`
-- response schemas and `LOGO_FIELD`
-- audit actions `CLUB_UPDATED`, `CLUB_LOGO_UPDATED`
+- **Migration** `20261111171335_membership_scheduled_status`: the `scheduled` status in the CHECK, plus `one_open_membership_per_user_club`.
+- **Gateway:** `src/lib/payments/` holds the `PaymentGateway` interface and the mock. `PAYMENT_GATEWAY=mock` is refused in production. Going live means adding one file, `sslcommerz.gateway.ts`.
+- **Routes:**
+  - `/api/v1/memberships`: purchase, `my`, renew, cancel, and the public `payment/ipn`
+  - `GET /api/v1/admin/memberships`
+  - `requireUserType` was added to the auth middleware
+- **IPN:** validated through the gateway, and idempotent. An IPN it can't verify changes nothing. Lock order everywhere: the membership row, then the payment row.
+- **Jobs:** BullMQ queue `memberships`, worker in the API process. The expiry job runs daily at 00:05 Asia/Dhaka; the stale-checkout job every 15 minutes.
+- **Receipt:** a `membership-receipt` email job.
 
-**Backend** (`src/modules/clubs/*`, at `/api/v1/clubs`):
+### Frontend (D33)
 
-- **Routes:** list, `my-club` (registered before `/:id`), detail (current committee only, with no email or phone), `PATCH /:id`, `PATCH /:id/logo`.
-- **Edit check:** `requireRole(['dept_admin','super_admin'])`, then `requireDepartmentScope` on the club's department (403 across departments). The service then locks the club row and checks again.
-- **Audit:** changed fields only; a no-op writes nothing. Fees are strings.
-- **Shared code:** `lib/image.ts` (`isAllowedImage`), `imageUpload(field)` / `logoUpload`, `uploadClubLogo`.
-- **Seeds:** `seed.ts` and the E2E seed create `"<Dept> Club"` per department.
+- **`/dashboard/memberships`:**
+  - the status `Panel` (`SYS.MEMBERSHIP.STATUS`) with uppercase status badges
+  - the plan `Dialog`: radio cards, RHF + zod; it redirects through `lib/checkout-redirect.ts`
+  - cancel and cancel-checkout confirmation
+  - the `?checkout=` banner, with polling until the payment is confirmed
+  - history in a TanStack `DataTable`
+- **`/dashboard/admin/memberships`:** status, plan and club filters in the URL (club for super admins only), plus a cancel button per row.
+- **`/dashboard/memberships/checkout/mock`:** the sandbox page, dev-only; it posts the IPN.
+- **Shared pieces:**
+  - `components/data-table.tsx` (TanStack Table v9), `membership-status-badge.tsx`, `cancel-membership-dialog.tsx`
+  - `(app)/_components/list-controls.tsx`: `Pager` and `FilterSelect`, moved out of the admin users page
+  - `hooks/use-memberships.ts`, `lib/membership.ts`, `lib/mock-gateway.ts`
+- **Nav:**
+  - `NavItem.userTypes`; `visibleNav({ role, userType })`
+  - "Membership" for students, "Memberships" for dept and super admins
+  - overview capability links
+- **Jest:** `jest.config.mjs` lets `@tanstack/*` through the transform, because v9 is ESM-only. This is test config only.
+- **E2E seed:** the CSE club gets monthly `500.00` and yearly `5000.00` fees.
 
-**Frontend:**
+### Docs
 
-- **Pages:**
-  - `/dashboard/clubs`: a bento grid with `৳` fees in mono and a "Your department" badge
-  - `/dashboard/clubs/[id]`: the record layout. Read-only About on the left; on the right, Committee, then "Details & fees" and "Logo" for editors only.
-  - `/dashboard/clubs/my-club`: a super admin gets an info alert, not an error
-- **Hooks:** `use-clubs.ts` (`useClubs`, `useClub`, `useMyClub`, `useUpdateClub`, `useUploadClubLogo`).
-- **Helpers:** `lib/club-access.ts` (`canEditClub`, display only) and `formatBdt` (string math, no `Number()` on money).
-- **Edit form:** React Hook Form + `zodResolver`. Fee fields are validated with the shared `feeSchema` and `FEE_MESSAGE`. Only dirty fields are sent, `''` as `null`. Save follows DESIGN's secondary/default rule, with Discard.
-- **Drop zone:** `components/image-drop-zone.tsx`, extracted from the avatar upload, which now wraps it. The avatar tests passed unchanged.
-- **Nav:** a "Clubs" group, with "My club" for every role except `super_admin` and "All clubs" for everyone. Overview capabilities link to my-club.
-
-## Files changed
-
-`git status` lists them all. In short:
-
-- **shared:** `schemas/club.ts`, `constants`, `index`
-- **backend:** `modules/clubs/*`, `lib/{image,cloudinary}.ts`, `middleware/upload.ts`, `modules/users/user.service.ts`, `app.ts`, `prisma/seed.ts`, `scripts/e2e-db.ts`; tests `clubs.test.ts`, `integration/{clubs.int,rbac-matrix.int,users.int}.test.ts`, `harness.ts`, `users.test.ts`
-- **frontend:** `app/(app)/dashboard/clubs/**`, `components/image-drop-zone.tsx`, `hooks/use-clubs.ts`, `lib/{club-access,format}.ts`, `_components/nav.ts`, `profile/_components/avatar-upload.tsx`; tests `tests/app/{clubs.test.tsx,nav.test.ts}`, `e2e/{clubs,shell}.spec.ts`
-- **docs:**
-  - `DECISIONS.md`: D31; D18 partly built; issues 16 and 6; PRD #1, #2, #21 built as default
-  - `UniConnect_PRD_V1.md`: FR-CLUB-003, §16, API table
-  - `DESIGN.md`: Image drop zone, Club directory, Club record, §11 tags
-  - `TASKS.md`, `CLAUDE.md`, this file
+- `DECISIONS.md`:
+  - D32 and D33
+  - D11 resolved; issue 13 resolved; §3 objects
+  - PRD #6 and #8 built as default; #22 built
+- ADR 0001.
+- PRD FR-MEM and §20 audit actions.
+- `DATABASE_SCHEMA_V1.md`.
+- `DESIGN.md` §7 (data table, membership page and badge, admin memberships list, sandbox checkout) and §11.
+- `TASKS.md` and `CLAUDE.md`.
 
 ## Database/migration changes
 
-None. No command touched `development` or `production`. Integration tests and E2E used the Neon `test` branch.
+`20261111171335_membership_scheduled_status`:
+
+- Applied to `development` (`db:migrate`; `db:status` up to date).
+- Applied to `test` (`db:test:deploy`).
+- `production` was not touched.
+- The E2E seed reset the `test` branch.
 
 ## Commands executed and results
 
-- `pnpm typecheck`, `pnpm lint`, `pnpm format:check`: pass.
-- `pnpm test`: backend 11 suites, 162/162; frontend 14 suites, 199/199.
-  - Earlier in the session one frontend run failed once in `admin-users.test.tsx`, while the integration suite was running alongside it. It passed when rerun.
-- `pnpm --filter @uniconnect/backend test:integration`: 8 suites, 215/215, including the RBAC matrix (1028 s).
-- `pnpm e2e`: first run 24 passed, 3 failed.
-  - **The failures:** `shell.spec.ts` asserted exactly 2 sidebar links. The Clubs group made it 4. The super-admin case was already stale from Phase 2's Users link, but last session's run never reached it.
-  - **The fix:** the spec now asserts the exact link names per user.
-  - **Rerun:** `shell.spec.ts` alone, 5/5. In the full run, `clubs.spec.ts` (3/3) and the admin specs (5/5) passed, which verifies the previous session's admin fix.
-- `impeccable detect` on the new UI files: `[]`.
+- `pnpm typecheck`, `pnpm lint` and `pnpm format:check` pass.
+- **Backend unit:** 12 suites, 187/187.
+- **Backend integration:** 9 suites, 284/284, including the RBAC matrix. The first memberships run went 36/39 because of a test-helper bug that bought the wrong department's club; the helper was fixed.
+- **Frontend unit:** 18 suites, 244/244.
+- **`pnpm run e2e`:** 30 passed, 1 failed.
+  - The failure was in the new spec: `getByText('Ayesha Rahman')` also matched the cancel button's screen-reader label, which Playwright's strict mode rejects.
+  - With `exact: true`, `memberships.spec.ts` alone passed 5/5.
+  - The other 26 tests passed in the full run.
+- **`impeccable detect`** on the new UI files: no findings, but in regex-only mode, which is an undercount.
 
 ## Not covered
 
-- A dept_admin in E2E: the E2E seed has none (task 1b). Unit tests and the backend RBAC matrix cover the role.
-- A real Cloudinary logo upload: a manual check.
-- A manual `pnpm dev` check on the `development` branch: `db:seed` there needs your approval, and that branch has no departments yet.
-- OpenAPI entries: task 1c.
+- The real SSLCommerz gateway and the reconcile job.
+- A manual `pnpm dev` check on `development`: it has no departments or clubs until `db:seed` is approved there.
+- A full rerun of the whole E2E suite after the one-line locator fix; only the memberships spec was rerun.
+- `impeccable detect` against a running page.
+- OpenAPI entries (task 1c).
 
 ## Current blockers
 
@@ -85,23 +94,19 @@ None.
 
 ## Approved decisions and ADR links
 
-D31 (new), D18 (partly built). No ADR.
+D11, D32, D33, [ADR 0001](adr/0001-membership-states.md).
 
 ## Risks and unresolved questions
 
-- The dept-admin edit check compares the club's department with the caller's `department_id`. The Phase 3 term endpoints must enforce `term.department_id = user.department_id` (D31).
-- Committee rows are ordered by position name alphabetically, not by rank. Revisit with the committee endpoints.
-- The directory asks for `limit=100` and has no pager. That's fine for one club per department.
-- The integration suite takes about 17 minutes against Neon, and E2E about 10.
-- Still open from before:
-  - H1, L3–L6, I1–I6
-  - D16
-  - the `development` branch has no departments
+- **Paid after cancel:** a payment validated after its membership was cancelled is recorded `completed`, the membership stays cancelled, and someone has to refund it by hand (D32).
+- **One shared Redis:** `pnpm dev` and the E2E API use the same Redis, so a scheduled membership job may run on either server's worker against its database. The email queue already behaves this way. Separate them before deployment.
+- **Failure notices:** an IPN with no `val_id` (a cancel or fail notice) is ignored, and the stale job closes the row after 30 minutes.
+- **Still open from before:** H1, L3–L6, I1–I6, D16, and the `development` branch has no departments.
 
 ## Exact next task
 
-Commit `feat/clubs` when you ask. Then Phase 3 continues: committee endpoints (assign, edit, end term) and dept admin terms. They need PRD decisions #3, #10, #11 and the D12 user-row lock. Task 1b (factories, a demo dept_admin and moderator in the E2E seed) would let E2E cover editors.
+Phase 3, the rest: committee endpoints (assign, edit, end term) and dept admin terms. They need PRD decisions #3, #10 and #11 and the D12 user-row lock. Task 1b (a demo dept_admin and moderator in the E2E seed) would let E2E cover admin editors.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` D12, D31. Plan the committee and dept-admin-term endpoints (Phase 3) in plan mode, after confirming PRD decisions #3, #10, #11.
+> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` D12, D31–D33. Plan the committee and dept-admin-term endpoints (Phase 3) in plan mode, after confirming PRD decisions #3, #10, #11.
