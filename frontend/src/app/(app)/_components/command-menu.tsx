@@ -1,6 +1,5 @@
 'use client';
 
-import type { Role } from '@uniconnect/shared';
 import { HomeIcon, LogOutIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -13,17 +12,17 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Kbd } from '@/components/ui/kbd';
-import { visibleNav } from './nav';
+import { visibleNav, type NavViewer } from './nav';
 
 interface CommandMenuProps {
-  role: Role;
+  viewer: NavViewer;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSignOut: () => void;
 }
 
-/** ⌘K palette for the workspace: the role's pages, the public site and sign out. */
-export function CommandMenu({ role, open, onOpenChange, onSignOut }: CommandMenuProps) {
+/** ⌘K palette for the workspace: the viewer's pages, the public site and sign out. */
+export function CommandMenu({ viewer, open, onOpenChange, onSignOut }: CommandMenuProps) {
   const router = useRouter();
 
   function go(href: string) {
@@ -42,7 +41,7 @@ export function CommandMenu({ role, open, onOpenChange, onSignOut }: CommandMenu
         <CommandInput placeholder="Search pages" aria-label="Search pages" />
         <CommandList>
           <CommandEmpty>Nothing matches that.</CommandEmpty>
-          {visibleNav(role).map((group) => (
+          {visibleNav(viewer).map((group) => (
             <CommandGroup key={group.label} heading={group.label}>
               {group.items.map(({ label, href, Icon }) => (
                 <CommandItem key={href} onSelect={() => go(href)}>

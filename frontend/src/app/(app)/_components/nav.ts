@@ -1,8 +1,10 @@
 import type { Role, UserType } from '@uniconnect/shared';
 import {
   HouseIcon,
+  IdCardIcon,
   LayoutDashboardIcon,
   LayoutGridIcon,
+  ReceiptTextIcon,
   UserRoundIcon,
   UsersIcon,
   type LucideIcon,
@@ -14,6 +16,18 @@ export interface NavItem {
   Icon: LucideIcon;
   /** Roles that see this item. Omitted means every role. */
   roles?: readonly Role[];
+  /**
+   * Account types that see this item. Omitted means every type. For pages about who someone
+   * is rather than their authority: buying a membership is for students, including student
+   * moderators, and never for faculty (PRD §5).
+   */
+  userTypes?: readonly UserType[];
+}
+
+/** Who is looking at the navigation. */
+export interface NavViewer {
+  role: Role;
+  userType: UserType;
 }
 
 export interface NavGroup {
@@ -24,6 +38,8 @@ export interface NavGroup {
 export const ADMIN_USERS_HREF = '/dashboard/admin/users';
 export const CLUBS_HREF = '/dashboard/clubs';
 export const MY_CLUB_HREF = '/dashboard/clubs/my-club';
+export const MEMBERSHIPS_HREF = '/dashboard/memberships';
+export const ADMIN_MEMBERSHIPS_HREF = '/dashboard/admin/memberships';
 
 /** Roles that belong to a department, and so have a club of their own. */
 const DEPARTMENT_ROLES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
@@ -46,20 +62,33 @@ export const NAV: NavGroup[] = [
     items: [
       { label: 'My club', href: MY_CLUB_HREF, Icon: HouseIcon, roles: DEPARTMENT_ROLES },
       { label: 'All clubs', href: CLUBS_HREF, Icon: LayoutGridIcon },
+      { label: 'Membership', href: MEMBERSHIPS_HREF, Icon: IdCardIcon, userTypes: ['student'] },
     ],
   },
   {
     label: 'Admin',
-    items: [{ label: 'Users', href: ADMIN_USERS_HREF, Icon: UsersIcon, roles: ['super_admin'] }],
+    items: [
+      { label: 'Users', href: ADMIN_USERS_HREF, Icon: UsersIcon, roles: ['super_admin'] },
+      {
+        label: 'Memberships',
+        href: ADMIN_MEMBERSHIPS_HREF,
+        Icon: ReceiptTextIcon,
+        roles: ['dept_admin', 'super_admin'],
+      },
+    ],
   },
 ];
 
-/** The groups and items a role can reach. Empty groups are dropped. */
-export function visibleNav(role: Role, nav: NavGroup[] = NAV): NavGroup[] {
+/** The groups and items a viewer can reach. Empty groups are dropped. */
+export function visibleNav({ role, userType }: NavViewer, nav: NavGroup[] = NAV): NavGroup[] {
   return nav
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.roles || item.roles.includes(role)),
+      items: group.items.filter(
+        (item) =>
+          (!item.roles || item.roles.includes(role)) &&
+          (!item.userTypes || item.userTypes.includes(userType)),
+      ),
     }))
     .filter((group) => group.items.length > 0);
 }
@@ -98,7 +127,10 @@ export interface Capability {
  */
 export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   student: [
-    { text: "Join your department's club with a monthly or yearly membership" },
+    {
+      text: "Join your department's club with a monthly or yearly membership",
+      href: MEMBERSHIPS_HREF,
+    },
     { text: 'Browse events and register, including other departments� public events' },
     { text: 'Record your blood donations and answer blood requests' },
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
@@ -117,12 +149,14 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   ],
   dept_admin: [
     { text: "Edit your department's club details and fees", href: MY_CLUB_HREF },
+    { text: "See and cancel your department's club memberships", href: ADMIN_MEMBERSHIPS_HREF },
     { text: 'Assign committee members' },
     { text: 'Verify blood donations in your department' },
     { text: 'Manage department events and post department announcements' },
   ],
   super_admin: [
     { text: 'Manage every user: suspend, activate and repair roles', href: ADMIN_USERS_HREF },
+    { text: 'See club memberships and payments across departments', href: ADMIN_MEMBERSHIPS_HREF },
     { text: 'Assign department admin terms' },
     { text: 'Verify blood donations in any department' },
     { text: 'Read the audit log' },

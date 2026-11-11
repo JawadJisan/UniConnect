@@ -5,15 +5,8 @@ import {
   USER_TYPES,
   type AdminUserListParams,
   type AdminUserSummary,
-  type PaginationMeta,
 } from '@uniconnect/shared';
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  SearchIcon,
-} from 'lucide-react';
+import { ArrowDownIcon, ArrowUpIcon, SearchIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useId, useState } from 'react';
@@ -21,7 +14,6 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/error-state';
 import { Input } from '@/components/ui/input';
-import { NativeSelect } from '@/components/ui/native-select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -35,6 +27,7 @@ import { useAdminUsers } from '@/hooks/use-admin-users';
 import { useDepartments } from '@/hooks/use-departments';
 import type { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
+import { FilterSelect, Pager } from '../../../../_components/list-controls';
 import { ADMIN_USERS_HREF, ROLE_LABEL, USER_TYPE_LABEL } from '../../../../_components/nav';
 import { useProfile } from '../../../../_components/require-session';
 import { NoAccess, StatusBadge } from './shared';
@@ -263,38 +256,6 @@ function UsersList() {
   );
 }
 
-function FilterSelect({
-  id,
-  label,
-  value,
-  onChange,
-  options,
-  all,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: [string, string][];
-  all: string;
-}) {
-  return (
-    <div>
-      <label htmlFor={id} className="sr-only">
-        {label}
-      </label>
-      <NativeSelect id={id} value={value} onChange={(e) => onChange(e.target.value)}>
-        <option value="">{all}</option>
-        {options.map(([v, text]) => (
-          <option key={v} value={v}>
-            {text}
-          </option>
-        ))}
-      </NativeSelect>
-    </div>
-  );
-}
-
 function SortHead({
   label,
   active,
@@ -360,38 +321,6 @@ function UserRow({ user }: { user: AdminUserSummary }) {
         {formatDate(user.created_at)}
       </TableCell>
     </TableRow>
-  );
-}
-
-function Pager({ meta, onPage }: { meta: PaginationMeta; onPage: (page: number) => void }) {
-  const first = (meta.page - 1) * meta.limit + 1;
-  const last = Math.min(meta.page * meta.limit, meta.total);
-  return (
-    <nav aria-label="Pages" className="flex items-center justify-between gap-3 text-sm">
-      <p className="font-mono text-fg-secondary tabular-nums" aria-live="polite">
-        {first}–{last} of {meta.total}
-      </p>
-      <div className="flex gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={meta.page <= 1}
-          onClick={() => onPage(meta.page - 1)}
-        >
-          <ChevronLeftIcon data-icon="inline-start" />
-          Previous
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={meta.page >= meta.total_pages}
-          onClick={() => onPage(meta.page + 1)}
-        >
-          Next
-          <ChevronRightIcon data-icon="inline-end" />
-        </Button>
-      </div>
-    </nav>
   );
 }
 
