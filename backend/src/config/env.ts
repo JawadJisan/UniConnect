@@ -32,6 +32,10 @@ const envSchema = z
     CLOUDINARY_CLOUD_NAME: z.string().optional(),
     CLOUDINARY_API_KEY: z.string().optional(),
     CLOUDINARY_API_SECRET: z.string().optional(),
+
+    // Membership payments (DECISIONS D32). `mock` stands in for SSLCommerz until the merchant
+    // account exists; it is refused in production. `sslcommerz` is not built yet.
+    PAYMENT_GATEWAY: z.enum(['mock', 'sslcommerz']).default('mock'),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;
@@ -40,6 +44,13 @@ const envSchema = z
         code: 'custom',
         path: ['AUTH_EMAIL_LIMITS'],
         message: 'AUTH_EMAIL_LIMITS cannot be off in production',
+      });
+    }
+    if (value.PAYMENT_GATEWAY === 'mock') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PAYMENT_GATEWAY'],
+        message: 'PAYMENT_GATEWAY cannot be mock in production',
       });
     }
     const required = [

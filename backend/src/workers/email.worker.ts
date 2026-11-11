@@ -1,5 +1,9 @@
 import { Worker } from 'bullmq';
-import { resetPasswordTemplate, verifyEmailTemplate } from '../emails/templates.js';
+import {
+  membershipReceiptTemplate,
+  resetPasswordTemplate,
+  verifyEmailTemplate,
+} from '../emails/templates.js';
 import { logger } from '../lib/logger.js';
 import { sendMail } from '../lib/mailer.js';
 import { createRedis } from '../lib/redis.js';
@@ -10,12 +14,15 @@ export function startEmailWorker(): Worker<EmailJob> {
   const worker = new Worker<EmailJob>(
     EMAIL_QUEUE,
     async (job) => {
-      const { kind, to, name, url } = job.data;
-      const mail =
-        kind === 'verify-email'
-          ? verifyEmailTemplate(to, name, url)
-          : resetPasswordTemplate(to, name, url);
-      await sendMail(mail);
+      const data = job.data;
+      switch (data.kind) {
+        case 'verify-email':
+          return sendMail(verifyEmailTemplate(data.to, data.name, data.url));
+        case 'reset-password':
+          return sendMail(resetPasswordTemplate(data.to, data.name, data.url));
+        case 'membership-receipt':
+          return sendMail(membershipReceiptTemplate(data));
+      }
     },
     { connection: createRedis(), concurrency: 5 },
   );

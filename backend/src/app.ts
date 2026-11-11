@@ -11,6 +11,10 @@ import { adminUserRouter } from './modules/admin-users/admin-user.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { clubRouter } from './modules/clubs/club.routes.js';
 import { departmentRouter } from './modules/departments/department.routes.js';
+import {
+  adminMembershipRouter,
+  membershipRouter,
+} from './modules/memberships/membership.routes.js';
 import { userRouter } from './modules/users/user.routes.js';
 
 export const app = express();
@@ -32,6 +36,8 @@ app.use('/api/v1/departments', departmentRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/admin/users', adminUserRouter);
 app.use('/api/v1/clubs', clubRouter);
+app.use('/api/v1/memberships', membershipRouter);
+app.use('/api/v1/admin/memberships', adminMembershipRouter);
 
 // Liveness: the process is up. Touches no external service.
 app.get('/api/v1/health', (_req, res) => {

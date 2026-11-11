@@ -1,4 +1,4 @@
-import type { Role } from '@uniconnect/shared';
+import type { Role, UserType } from '@uniconnect/shared';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request, RequestHandler } from 'express';
 import { auth, type AuthSession } from '../lib/auth.js';
@@ -38,6 +38,18 @@ export function requireRole(roles: readonly Role[]): RequestHandler {
   return (req, _res, next) => {
     const { user } = sessionOf(req);
     if (!roles.includes(user.role as Role)) return next(forbidden());
+    next();
+  };
+}
+
+/**
+ * Layer 2, by kind of person. Rules about who someone is (buying a membership) use `user_type`,
+ * not `role`, so a student moderator keeps them (PRD §5).
+ */
+export function requireUserType(types: readonly UserType[]): RequestHandler {
+  return (req, _res, next) => {
+    const { user } = sessionOf(req);
+    if (!types.includes(user.userType as UserType)) return next(forbidden());
     next();
   };
 }
