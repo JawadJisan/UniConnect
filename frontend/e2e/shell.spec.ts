@@ -5,13 +5,18 @@ import { expectNoHorizontalScroll, logIn } from './helpers';
 // The signed-in shell for each user type: navigation, account tag, palette and small screens.
 
 test.describe('workspace shell', () => {
-  // The sidebar comes from one role-aware table (nav.ts): everyone with a department gets
-  // "My club"; only super admins get the Admin group.
+  // The sidebar comes from one table (nav.ts): everyone with a department gets "My club",
+  // students get "Membership" (by account type), and only admins get the Admin group.
   const DEPARTMENT_LINKS = ['Overview', 'Profile', 'My club', 'All clubs'];
   for (const [who, user, tag, links] of [
-    ['student', USERS.student, 'Student · CSE', DEPARTMENT_LINKS],
+    ['student', USERS.student, 'Student · CSE', [...DEPARTMENT_LINKS, 'Membership']],
     ['faculty', USERS.faculty, 'Faculty · CSE', DEPARTMENT_LINKS],
-    ['super admin', USERS.admin, 'Super admin', ['Overview', 'Profile', 'All clubs', 'Users']],
+    [
+      'super admin',
+      USERS.admin,
+      'Super admin',
+      ['Overview', 'Profile', 'All clubs', 'Users', 'Memberships'],
+    ],
   ] as const) {
     test(`${who}: overview, navigation and account tag`, async ({ page }) => {
       await logIn(page, user.email);
