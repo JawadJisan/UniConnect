@@ -6,7 +6,23 @@ export const EMAIL_QUEUE = 'email';
 
 export type EmailJob =
   | { kind: 'verify-email'; to: string; name: string; url: string }
-  | { kind: 'reset-password'; to: string; name: string; url: string };
+  | { kind: 'reset-password'; to: string; name: string; url: string }
+  | {
+      /** After a validated membership payment (PRD FR-MEM-001 step 3). */
+      kind: 'membership-receipt';
+      to: string;
+      name: string;
+      clubName: string;
+      type: 'monthly' | 'yearly';
+      /** `active`, or `scheduled` for an early renewal. */
+      status: 'active' | 'scheduled';
+      startDate: string;
+      endDate: string;
+      amount: string;
+      currency: string;
+      transactionId: string;
+      url: string;
+    };
 
 let queue: Queue<EmailJob> | undefined;
 

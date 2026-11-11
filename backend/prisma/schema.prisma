@@ -122,7 +122,8 @@ model ClubMembership {
   type      String   @db.VarChar(10)
   startDate DateTime @map("start_date") @db.Date
   endDate   DateTime @map("end_date") @db.Date
-  /// pending | active | expired | cancelled. One active row per user per club (partial unique).
+  /// pending | scheduled | active | expired | cancelled. One active row, and one pending-or-scheduled
+  /// row, per user per club (partial uniques; DECISIONS D11). `scheduled` = paid renewal not yet started.
   status    String   @default("pending") @db.VarChar(10)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")

@@ -1,4 +1,5 @@
 import type { Mail } from '../lib/mailer.js';
+import type { EmailJob } from '../queues/email.queue.js';
 
 const escape = (value: string) =>
   value.replace(
@@ -45,6 +46,36 @@ export function resetPasswordTemplate(to: string, name: string, url: string): Ma
       'Use the button below to choose a new password. Signing in again will be required on every device.',
       'Reset password',
       url,
+      note,
+    ),
+  };
+}
+
+type ReceiptJob = Extract<EmailJob, { kind: 'membership-receipt' }>;
+
+/** Payment receipt. Amounts arrive as strings ("500.00") and are printed as-is. */
+export function membershipReceiptTemplate(job: ReceiptJob): Mail {
+  const period = job.type === 'yearly' ? 'Yearly' : 'Monthly';
+  const when =
+    job.status === 'scheduled'
+      ? `Your renewal starts on ${job.startDate}, the day after your current membership ends, and runs until ${job.endDate}.`
+      : `Your membership is active from ${job.startDate} until ${job.endDate}.`;
+  const lines = [
+    `Club: ${job.clubName}`,
+    `Plan: ${period}`,
+    `Amount paid: ${job.currency} ${job.amount}`,
+    `Transaction ID: ${job.transactionId}`,
+  ];
+  const note = 'Keep this email as your receipt. Memberships are not refundable.';
+  return {
+    to: job.to,
+    subject: `Payment received: ${job.clubName} membership`,
+    text: `Hi ${job.name},\n\nThank you for your payment. ${when}\n\n${lines.join('\n')}\n\nView your memberships: ${job.url}\n\n${note}`,
+    html: layout(
+      `Hi ${job.name}, your payment is confirmed`,
+      `${when} ${lines.join(' · ')}`,
+      'View my memberships',
+      job.url,
       note,
     ),
   };

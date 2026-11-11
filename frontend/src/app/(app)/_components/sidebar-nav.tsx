@@ -1,20 +1,19 @@
 'use client';
 
-import type { Role } from '@uniconnect/shared';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { MicroLabel } from '@/components/ui/micro-label';
 import { cn } from '@/lib/utils';
-import { activeHref, visibleNav } from './nav';
+import { activeHref, visibleNav, type NavViewer } from './nav';
 
-/** The role's navigation groups. Used by the desktop sidebar and the mobile drawer. */
-export function SidebarNav({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
+/** The viewer's navigation groups. Used by the desktop sidebar and the mobile drawer. */
+export function SidebarNav({ viewer, onNavigate }: { viewer: NavViewer; onNavigate?: () => void }) {
   const pathname = usePathname();
   const active = activeHref(pathname);
 
   return (
     <nav aria-label="Workspace" className="flex flex-col gap-5">
-      {visibleNav(role).map((group) => (
+      {visibleNav(viewer).map((group) => (
         <div key={group.label} className="flex flex-col gap-1">
           <MicroLabel as="h2" className="px-2 pb-1">
             {group.label}

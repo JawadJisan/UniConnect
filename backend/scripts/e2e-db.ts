@@ -4,7 +4,8 @@
 //   node scripts/with-test-db.mjs tsx scripts/e2e-db.ts seed
 //   node scripts/with-test-db.mjs tsx scripts/e2e-db.ts verify <email>
 //
-// `seed` empties the user tables and creates one verified account per user type. `verify`
+// `seed` empties the user tables (memberships and payments go with them, by cascade) and
+// creates one verified account per user type. `verify`
 // marks an address verified, standing in for the emailed link (the link itself is covered by
 // the backend integration tests).
 import { AUDIT_ACTIONS } from '@uniconnect/shared';
@@ -38,13 +39,18 @@ async function seed() {
       update: {},
       create: dept,
     });
-    // One club per department, reset on every seed so club edits in E2E are repeatable.
+    // One club per department, reset on every seed so club edits in E2E are repeatable. CSE
+    // has fees, so memberships.spec.ts can buy one; the others have none.
+    const fees =
+      dept.name === 'CSE'
+        ? { membershipFeeMonthly: '500.00', membershipFeeYearly: '5000.00' }
+        : { membershipFeeMonthly: null, membershipFeeYearly: null };
     const club = { name: `${dept.name} Club`, description: dept.description };
-    const reset = { ...club, logoUrl: null, membershipFeeMonthly: null, membershipFeeYearly: null };
+    const reset = { ...club, logoUrl: null, ...fees };
     await prisma.club.upsert({
       where: { departmentId: id },
       update: reset,
-      create: { departmentId: id, ...club },
+      create: { departmentId: id, ...club, ...fees },
     });
   }
   const cse = await prisma.department.findUniqueOrThrow({ where: { name: 'CSE' } });

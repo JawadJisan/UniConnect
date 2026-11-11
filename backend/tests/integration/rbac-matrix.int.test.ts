@@ -26,6 +26,10 @@ const SUPER: readonly Role[] = ['super_admin'];
 const SOME_USER = '00000000-0000-4000-8000-000000000000';
 /** Club routes act on the CSE club, the department every matrix account belongs to. */
 const CLUB_EDITORS: readonly Role[] = ['dept_admin', 'super_admin'];
+/** Memberships are bought by user_type student; the matrix moderator is a student (PRD §5). */
+const STUDENT_TYPE: readonly Role[] = ['student', 'moderator'];
+const ADMINS: readonly Role[] = ['dept_admin', 'super_admin'];
+const NO_MEMBERSHIP = 999999;
 let cseClub = 0;
 
 interface Policy {
@@ -55,6 +59,18 @@ const POLICY: Policy[] = [
   { method: 'get', path: '/api/v1/clubs/:club', allowed: ALL },
   { method: 'patch', path: '/api/v1/clubs/:club', allowed: CLUB_EDITORS, body: {} },
   { method: 'patch', path: '/api/v1/clubs/:club/logo', allowed: CLUB_EDITORS },
+  // POST /memberships/payment/ipn is public (the gateway's callback); memberships.int covers it.
+  { method: 'get', path: '/api/v1/memberships/my', allowed: STUDENT_TYPE },
+  { method: 'post', path: '/api/v1/memberships', allowed: STUDENT_TYPE, body: {} },
+  {
+    method: 'post',
+    path: `/api/v1/memberships/${NO_MEMBERSHIP}/renew`,
+    allowed: STUDENT_TYPE,
+    body: {},
+  },
+  // Owner, the club's dept_admin or super_admin; the service answers 404 to anyone else.
+  { method: 'patch', path: `/api/v1/memberships/${NO_MEMBERSHIP}/cancel`, allowed: ALL },
+  { method: 'get', path: '/api/v1/admin/memberships', allowed: ADMINS },
 ];
 
 const ACCOUNTS: Record<Role, { userType: 'student' | 'faculty' | 'super_admin' }> = {

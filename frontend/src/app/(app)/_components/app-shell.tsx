@@ -1,10 +1,10 @@
 'use client';
 
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
-import type { Role, UserProfile } from '@uniconnect/shared';
+import type { UserProfile } from '@uniconnect/shared';
 import { MenuIcon, XIcon } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { CommandChipButton } from '@/components/ui/command-chip';
@@ -13,7 +13,7 @@ import { useCommandK, useIsApplePlatform } from '@/hooks/use-command-k';
 import { Wordmark } from '../../_components/wordmark';
 import { CommandMenu } from './command-menu';
 import { useSignOut } from './require-session';
-import { activeHref, NAV, ROLE_LABEL } from './nav';
+import { activeHref, NAV, ROLE_LABEL, type NavViewer } from './nav';
 import { SidebarNav } from './sidebar-nav';
 
 /** "STUDENT · CSE": the role and department, the two facts every page is scoped by. */
@@ -55,7 +55,10 @@ export function AppShell({ profile, children }: { profile: UserProfile; children
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const role: Role = profile.role;
+  const viewer = useMemo<NavViewer>(
+    () => ({ role: profile.role, userType: profile.user_type }),
+    [profile.role, profile.user_type],
+  );
 
   const togglePalette = useCallback(() => setPaletteOpen((open) => !open), []);
   useCommandK(togglePalette);
@@ -74,7 +77,7 @@ export function AppShell({ profile, children }: { profile: UserProfile; children
           <Wordmark />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <SidebarNav role={role} />
+          <SidebarNav viewer={viewer} />
         </div>
         <SidebarFooter profile={profile} />
       </aside>
@@ -139,7 +142,7 @@ export function AppShell({ profile, children }: { profile: UserProfile; children
               </DialogPrimitive.Close>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <SidebarNav role={role} onNavigate={() => setDrawerOpen(false)} />
+              <SidebarNav viewer={viewer} onNavigate={() => setDrawerOpen(false)} />
             </div>
             <SidebarFooter profile={profile} />
           </DialogPrimitive.Popup>
@@ -147,7 +150,7 @@ export function AppShell({ profile, children }: { profile: UserProfile; children
       </DialogPrimitive.Root>
 
       <CommandMenu
-        role={role}
+        viewer={viewer}
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         onSignOut={signOut}
