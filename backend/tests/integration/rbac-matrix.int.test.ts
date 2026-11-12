@@ -32,10 +32,14 @@ const ADMINS: readonly Role[] = ['dept_admin', 'super_admin'];
 const NO_MEMBERSHIP = 999999;
 /** A committee row or term id that doesn't exist: authorization passes, then 400 or 404. */
 const NO_ROW = 999999;
+/** Event organizers (D36); which club they may manage is checked by the service (404 here). */
+const ORGANIZERS: readonly Role[] = ['moderator', 'dept_admin', 'super_admin'];
+/** Everyone but super_admin registers for events (FR-EVENT-007). */
+const ATTENDEES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
 let cseClub = 0;
 
 interface Policy {
-  method: 'get' | 'patch' | 'post';
+  method: 'get' | 'patch' | 'post' | 'delete';
   path: string;
   allowed: readonly Role[];
   body?: object;
@@ -101,6 +105,24 @@ const POLICY: Policy[] = [
     path: `/api/v1/admin/dept-admin-terms/${NO_ROW}/renew`,
     allowed: SUPER,
     body: {},
+  },
+  // Events (D36). NO_ROW doesn't exist, so allowed roles get 404 from the service.
+  { method: 'post', path: '/api/v1/events', allowed: ORGANIZERS, body: {} },
+  { method: 'get', path: '/api/v1/events', allowed: ALL },
+  { method: 'get', path: '/api/v1/events/my-registrations', allowed: ALL },
+  { method: 'get', path: `/api/v1/events/${NO_ROW}`, allowed: ALL },
+  { method: 'patch', path: `/api/v1/events/${NO_ROW}`, allowed: ORGANIZERS, body: {} },
+  { method: 'patch', path: `/api/v1/events/${NO_ROW}/poster`, allowed: ORGANIZERS },
+  { method: 'patch', path: `/api/v1/events/${NO_ROW}/publish`, allowed: ORGANIZERS },
+  { method: 'patch', path: `/api/v1/events/${NO_ROW}/cancel`, allowed: ORGANIZERS },
+  { method: 'patch', path: `/api/v1/events/${NO_ROW}/complete`, allowed: ORGANIZERS },
+  { method: 'post', path: `/api/v1/events/${NO_ROW}/register`, allowed: ATTENDEES },
+  { method: 'delete', path: `/api/v1/events/${NO_ROW}/register`, allowed: ATTENDEES },
+  { method: 'get', path: `/api/v1/events/${NO_ROW}/registrations`, allowed: ORGANIZERS },
+  {
+    method: 'patch',
+    path: `/api/v1/events/${NO_ROW}/registrations/${NO_ROW}/check-in`,
+    allowed: ORGANIZERS,
   },
 ];
 

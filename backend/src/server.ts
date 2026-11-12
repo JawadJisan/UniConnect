@@ -4,9 +4,11 @@ import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
 import { redis } from './lib/redis.js';
 import { closeEmailQueue } from './queues/email.queue.js';
+import { closeEventQueue } from './queues/event.queue.js';
 import { closeMembershipQueue, scheduleMembershipJobs } from './queues/membership.queue.js';
 import { closeTermQueue, scheduleTermJobs } from './queues/term.queue.js';
 import { startEmailWorker } from './workers/email.worker.js';
+import { startEventWorker } from './workers/event.worker.js';
 import { startMembershipWorker } from './workers/membership.worker.js';
 import { startTermWorker } from './workers/term.worker.js';
 
@@ -20,6 +22,7 @@ const termWorker = startTermWorker();
 scheduleTermJobs().catch((err: Error) => {
   logger.error(`term job schedules not registered: ${err.message}`);
 });
+const eventWorker = startEventWorker();
 
 const server = app.listen(env.PORT, () => {
   logger.info(`API listening on http://localhost:${env.PORT}`);
@@ -36,9 +39,11 @@ async function shutdown(signal: string) {
     emailWorker.close(),
     membershipWorker.close(),
     termWorker.close(),
+    eventWorker.close(),
     closeEmailQueue(),
     closeMembershipQueue(),
     closeTermQueue(),
+    closeEventQueue(),
   ]);
   await Promise.allSettled([prisma.$disconnect(), redis.quit()]);
   process.exit(0);

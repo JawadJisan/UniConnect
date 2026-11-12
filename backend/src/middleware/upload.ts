@@ -1,4 +1,10 @@
-import { AVATAR_FIELD, AVATAR_MAX_BYTES, AVATAR_MIME_TYPES, LOGO_FIELD } from '@uniconnect/shared';
+import {
+  AVATAR_FIELD,
+  AVATAR_MAX_BYTES,
+  AVATAR_MIME_TYPES,
+  LOGO_FIELD,
+  POSTER_FIELD,
+} from '@uniconnect/shared';
 import type { RequestHandler } from 'express';
 import multer from 'multer';
 import { badRequest } from '../lib/http-error.js';
@@ -46,3 +52,6 @@ export const avatarUpload = imageUpload(AVATAR_FIELD);
 
 /** PATCH /clubs/:id/logo: one image in the `logo` field. */
 export const logoUpload = imageUpload(LOGO_FIELD);
+
+/** PATCH /events/:id/poster: one image in the `poster` field. */
+export const posterUpload = imageUpload(POSTER_FIELD);

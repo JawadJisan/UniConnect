@@ -1404,6 +1404,9 @@ Calls Gemini to generate a 2–3 sentence engaging event description. Returns su
 | `EVENT_CREATED` | New event inserted |
 | `EVENT_PUBLISHED` | Event `status → published` |
 | `EVENT_CANCELLED` | Event `status → cancelled` |
+| `EVENT_UPDATED` | Event fields or poster changed (changed fields only; DECISIONS D36) |
+| `EVENT_COMPLETED` | Event `status → completed`; remaining registrations marked `no_show` (DECISIONS D36) |
+| `EVENT_CHECK_IN` | An organizer checked a registrant in (DECISIONS D36) |
 | `BLOOD_DONATION_VERIFIED` | `BloodDonation.verified → true` |
 | `USER_SUSPENDED` | `User.is_active → false` |
 | `USER_ACTIVATED` | `User.is_active → true` |

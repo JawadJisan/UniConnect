@@ -32,6 +32,21 @@ export type EmailJob =
       startDate: string;
       endDate: string;
       url: string;
+    }
+  | {
+      /**
+       * Event emails (PRD FR-EVENT-003, -005, -007; DECISIONS D36): a new event the reader may
+       * attend, a cancellation for registrants, and a registration confirmation.
+       */
+      kind: 'event-published' | 'event-cancelled' | 'event-registered';
+      to: string;
+      name: string;
+      title: string;
+      clubName: string;
+      /** ISO 8601 instant; the template shows it in Asia/Dhaka. */
+      startDate: string;
+      venue: string | null;
+      url: string;
     };
 
 let queue: Queue<EmailJob> | undefined;
@@ -55,9 +70,13 @@ function getQueue(): Queue<EmailJob> {
   return queue;
 }
 
-export async function enqueueEmail(job: EmailJob): Promise<void> {
+/**
+ * `jobId` makes the add idempotent while the job is still in Redis: the event fan-out passes
+ * one per recipient, so a retried page doesn't queue the same email twice.
+ */
+export async function enqueueEmail(job: EmailJob, opts: { jobId?: string } = {}): Promise<void> {
   try {
-    await getQueue().add(job.kind, job);
+    await getQueue().add(job.kind, job, opts.jobId ? { jobId: opts.jobId } : undefined);
   } catch (err) {
     // ioredis errors carry the failed command, and for AUTH/HELLO that includes the Redis
     // password. Better Auth logs whatever this throws, so pass on only the message.

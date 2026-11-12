@@ -41,6 +41,17 @@ const CLUB_LOGO_OPTIONS: UploadApiOptions = {
   allowed_formats: ['jpg', 'png', 'webp'],
 };
 
+const EVENT_POSTER_OPTIONS: UploadApiOptions = {
+  folder: 'uniconnect/event-posters',
+  resource_type: 'image',
+  // One poster per event, replaced in place like logos.
+  overwrite: true,
+  invalidate: true,
+  // Posters keep their shape: fit inside 1600x1600, no crop.
+  transformation: [{ width: 1600, height: 1600, crop: 'limit' }],
+  allowed_formats: ['jpg', 'png', 'webp'],
+};
+
 function upload(buffer: Buffer, options: UploadApiOptions): Promise<UploadApiResponse> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
@@ -85,5 +96,14 @@ export function uploadClubLogo(clubId: number, buffer: Buffer): Promise<string> 
     buffer,
     { ...CLUB_LOGO_OPTIONS, public_id: `club-${clubId}` },
     `logo for club ${clubId}`,
+  );
+}
+
+/** Uploads an event's poster and returns its HTTPS URL (PRD FR-EVENT-002, DECISIONS D36). */
+export function uploadEventPoster(eventId: number, buffer: Buffer): Promise<string> {
+  return uploadImage(
+    buffer,
+    { ...EVENT_POSTER_OPTIONS, public_id: `event-${eventId}` },
+    `poster for event ${eventId}`,
   );
 }

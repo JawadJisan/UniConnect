@@ -17,6 +17,7 @@ const uploadClubLogo = jest.fn<(clubId: number, buffer: Buffer) => Promise<strin
 jest.unstable_mockModule('../../src/lib/cloudinary.js', () => ({
   uploadAvatar: jest.fn(),
   uploadClubLogo,
+  uploadEventPoster: jest.fn(),
 }));
 
 const h = await loadHarness();
