@@ -16,7 +16,7 @@ import { Fee } from './club-card';
 import { ClubEditForm } from './club-edit-form';
 import { ClubLogo } from './club-logo';
 import { ClubLogoUpload } from './club-logo-upload';
-import { CommitteeTable } from './committee-table';
+import { CommitteePanel } from './committee-panel';
 
 export function BackToClubs() {
   return (
@@ -106,14 +106,7 @@ export function ClubRecord({ club }: { club: ClubDetail }) {
         </div>
 
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
-          <Panel
-            id="club-committee-title"
-            title="Committee"
-            tag="SYS.CLUB.COMMITTEE"
-            description="Current positions only."
-          >
-            <CommitteeTable members={club.committee} />
-          </Panel>
+          <CommitteePanel club={club} editable={editable} />
           {editable ? (
             <>
               {/* Keyed by the update time, so a saved change resets the form's baseline. */}

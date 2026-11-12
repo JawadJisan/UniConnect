@@ -23,7 +23,7 @@ import { useAdminUpdateUser } from '@/hooks/use-admin-users';
 import { useDepartments } from '@/hooks/use-departments';
 import type { ApiError } from '@/lib/api';
 import { Panel } from '../../../../_components/panel';
-import { applyServerError } from '../../../profile/_components/server-errors';
+import { applyServerError } from '@/lib/server-errors';
 
 const FORM_ID = 'admin-edit-form';
 const ORDINAL = ['1st', '2nd', '3rd', '4th'];
