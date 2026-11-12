@@ -1,6 +1,7 @@
 import { Worker } from 'bullmq';
 import {
   deptAdminAssignedTemplate,
+  eventTemplate,
   membershipReceiptTemplate,
   resetPasswordTemplate,
   verifyEmailTemplate,
@@ -25,6 +26,10 @@ export function startEmailWorker(): Worker<EmailJob> {
           return sendMail(membershipReceiptTemplate(data));
         case 'dept-admin-assigned':
           return sendMail(deptAdminAssignedTemplate(data));
+        case 'event-published':
+        case 'event-cancelled':
+        case 'event-registered':
+          return sendMail(eventTemplate(data));
       }
     },
     { connection: createRedis(), concurrency: 5 },

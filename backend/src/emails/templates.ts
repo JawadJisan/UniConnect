@@ -106,3 +106,65 @@ ${note}`,
     ),
   };
 }
+
+type EventJob = Extract<
+  EmailJob,
+  { kind: 'event-published' | 'event-cancelled' | 'event-registered' }
+>;
+
+/** "Tue, 1 Dec 2026, 4:00 pm" in Asia/Dhaka, the university's time zone. */
+export function formatDhakaDateTime(iso: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Dhaka',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(iso));
+}
+
+const EVENT_COPY = {
+  'event-published': {
+    subject: (t: string) => `New event: ${t}`,
+    heading: 'there is a new event for you',
+    lead: (j: EventJob) => `${j.clubName} published "${j.title}".`,
+    action: 'View event',
+    note: 'You get this because the event is open to your department.',
+  },
+  'event-cancelled': {
+    subject: (t: string) => `Cancelled: ${t}`,
+    heading: 'an event you registered for was cancelled',
+    lead: (j: EventJob) => `${j.clubName} cancelled "${j.title}".`,
+    action: 'View event',
+    note: 'Your registration needs no action.',
+  },
+  'event-registered': {
+    subject: (t: string) => `You are registered: ${t}`,
+    heading: 'you are registered',
+    lead: (j: EventJob) => `You are registered for "${j.title}" by ${j.clubName}.`,
+    action: 'View event',
+    note: 'You can cancel your registration from the event page before it starts.',
+  },
+} as const;
+
+/** FR-EVENT-003, -005, -007. Event text is the organizers'; layout() escapes it. */
+export function eventTemplate(job: EventJob): Mail {
+  const copy = EVENT_COPY[job.kind];
+  const when = formatDhakaDateTime(job.startDate);
+  const body = `${copy.lead(job)} Starts ${when}${job.venue ? ` at ${job.venue}` : ''}.`;
+  return {
+    to: job.to,
+    subject: copy.subject(job.title),
+    text: `Hi ${job.name},
+
+${body}
+
+${copy.action}: ${job.url}
+
+${copy.note}`,
+    html: layout(`Hi ${job.name}, ${copy.heading}`, body, copy.action, job.url, copy.note),
+  };
+}
