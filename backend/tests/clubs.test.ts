@@ -9,6 +9,7 @@ jest.unstable_mockModule('../src/lib/prisma.js', () => ({ prisma: {} }));
 jest.unstable_mockModule('../src/lib/cloudinary.js', () => ({
   uploadAvatar: jest.fn(),
   uploadClubLogo: jest.fn(),
+  uploadEventPoster: jest.fn(),
 }));
 
 const { Prisma } = await import('../src/generated/prisma/client.js');

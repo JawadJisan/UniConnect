@@ -33,6 +33,7 @@ jest.unstable_mockModule('../src/lib/redis.js', () => ({ redis: {}, createRedis:
 jest.unstable_mockModule('../src/lib/cloudinary.js', () => ({
   uploadAvatar,
   uploadClubLogo: jest.fn(),
+  uploadEventPoster: jest.fn(),
 }));
 
 const { app } = await import('../src/app.js');

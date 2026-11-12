@@ -22,6 +22,7 @@ const uploadAvatar = jest.fn<(userId: string, buffer: Buffer) => Promise<string>
 jest.unstable_mockModule('../../src/lib/cloudinary.js', () => ({
   uploadAvatar,
   uploadClubLogo: jest.fn(),
+  uploadEventPoster: jest.fn(),
 }));
 jest.unstable_mockModule('../../src/repositories/audit.repository.js', () => ({
   auditRepository: {

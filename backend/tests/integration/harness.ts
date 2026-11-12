@@ -55,6 +55,8 @@ export const fakeRedis = new FakeRedis();
 export const sentEmails: EmailJob[] = [];
 /** Set `down` to make enqueueEmail reject, as it does when the queue's Redis is unreachable. */
 export const emailQueue = { down: false };
+/** Event fan-out jobs queued by publish and cancel (DECISIONS D36). */
+export const eventJobs: { eventId: number; kind: 'published' | 'cancelled' }[] = [];
 
 jest.unstable_mockModule('../../src/lib/redis.js', () => ({
   redis: fakeRedis,
@@ -67,6 +69,14 @@ jest.unstable_mockModule('../../src/queues/email.queue.js', () => ({
     sentEmails.push(job);
   },
   closeEmailQueue: async () => {},
+}));
+jest.unstable_mockModule('../../src/queues/event.queue.js', () => ({
+  EVENT_QUEUE: 'events',
+  NOTIFY_EVENT_JOB: 'notify-event',
+  queueEventNotification: async (eventId: number, kind: 'published' | 'cancelled') => {
+    eventJobs.push({ eventId, kind });
+  },
+  closeEventQueue: async () => {},
 }));
 
 export async function loadHarness() {
@@ -91,6 +101,7 @@ export async function resetDatabase({ prisma }: Harness) {
   );
   fakeRedis.reset();
   sentEmails.length = 0;
+  eventJobs.length = 0;
   emailQueue.down = false;
 }
 
