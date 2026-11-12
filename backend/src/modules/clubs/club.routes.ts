@@ -9,6 +9,7 @@ import {
 } from '../../middleware/auth.js';
 import { logoUpload } from '../../middleware/upload.js';
 import { validateBody, validateRequest } from '../../middleware/validate.js';
+import { committeeRouter } from '../committee/committee.routes.js';
 import { clubController } from './club.controller.js';
 import { clubRepository } from './club.repository.js';
 
@@ -37,3 +38,4 @@ clubRouter.get('/my-club', clubController.myClub);
 clubRouter.get('/:id', byId, clubController.detail);
 clubRouter.patch('/:id', ...canEdit, validateBody(updateClubSchema), clubController.update);
 clubRouter.patch('/:id/logo', ...canEdit, logoUpload, clubController.updateLogo);
+clubRouter.use('/:id/committee', committeeRouter);
