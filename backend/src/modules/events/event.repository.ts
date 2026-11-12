@@ -27,6 +27,10 @@ export const EVENT_SELECT = {
     select: { department: { select: { id: true, name: true } } },
     orderBy: { department: { name: 'asc' } },
   },
+  // Seats taken: `registered` and `attended` (the same statuses as countSeated).
+  _count: {
+    select: { registrations: { where: { status: { in: ['registered', 'attended'] } } } },
+  },
 } satisfies Prisma.EventSelect;
 
 export type EventRow = Prisma.EventGetPayload<{ select: typeof EVENT_SELECT }>;

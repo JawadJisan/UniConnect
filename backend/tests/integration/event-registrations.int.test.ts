@@ -157,6 +157,21 @@ describe('POST /events/:id/register (FR-EVENT-007)', () => {
     expect(await prisma.eventRegistration.count({ where: { eventId: id } })).toBe(1);
   });
 
+  it('counts seats on browse and my-registrations rows, leaving out cancelled ones', async () => {
+    const id = await published();
+    await register('student', id);
+    await register('faculty', id);
+    await as('faculty').delete(`/api/v1/events/${id}/register`);
+    const list = await as('student').get('/api/v1/events?limit=100');
+    expect(list.body.data.find((e: { id: number }) => e.id === id)).toMatchObject({
+      registered_count: 1,
+    });
+    const mine = await as('student').get('/api/v1/events/my-registrations?limit=100');
+    expect(
+      mine.body.data.find((r: { event: { id: number } }) => r.event.id === id).event,
+    ).toMatchObject({ registered_count: 1 });
+  });
+
   it('refuses drafts, ended and cancelled events', async () => {
     const draft = await as('dept_admin').post('/api/v1/events', {
       title: 'Draft',

@@ -22,6 +22,7 @@ export function toEventSummary(row: EventRow): EventSummary {
     end_date: row.endDate.toISOString(),
     venue: row.venue,
     max_attendees: row.maxAttendees,
+    registered_count: row._count.registrations,
     poster_image_url: row.posterImageUrl,
     status: row.status as EventStatus,
     departments: row.departments.map((d) => ({ id: d.department.id, name: d.department.name })),

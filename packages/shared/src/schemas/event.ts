@@ -179,6 +179,8 @@ export const eventSummarySchema = z.object({
   end_date: z.string(),
   venue: z.string().nullable(),
   max_attendees: z.number().int().nullable(),
+  /** Seats taken: `registered` and `attended` registrations. */
+  registered_count: z.number().int(),
   poster_image_url: z.string().nullable(),
   status: z.enum(EVENT_STATUSES),
   departments: z.array(ref),
@@ -200,7 +202,6 @@ export const REGISTER_BLOCKED_REASONS = [
 
 /** GET /api/v1/events/:id: the summary plus counts and what the caller may do. */
 export const eventDetailSchema = eventSummarySchema.extend({
-  registered_count: z.number().int(),
   my_registration: z
     .object({ id: z.number().int(), status: z.enum(EVENT_REGISTRATION_STATUSES) })
     .nullable(),

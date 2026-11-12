@@ -249,12 +249,11 @@ export const eventService = {
   async detail(caller: EventCaller, id: number): Promise<EventDetail> {
     const loaded = await loadVisible(prisma, caller, id);
     const { row } = loaded;
-    const [seated, mine] = await Promise.all([
-      eventRepository.countSeated(prisma, id),
+    const seated = row._count.registrations;
+    const mine =
       caller.role === 'super_admin'
-        ? Promise.resolve(null)
-        : registrationRepository.findForUser(prisma, caller.id, id),
-    ]);
+        ? null
+        : await registrationRepository.findForUser(prisma, caller.id, id);
     const block = registerBlock({
       role: caller.role,
       status: row.status,
@@ -267,7 +266,6 @@ export const eventService = {
     });
     return {
       ...toEventSummary(row),
-      registered_count: seated,
       my_registration: mine
         ? { id: mine.id, status: mine.status as EventRegistrationStatus }
         : null,

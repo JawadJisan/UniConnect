@@ -278,8 +278,10 @@ describe('toEventSummary', () => {
       updatedAt: at,
       organizerClub: { id: 10, name: 'CSE Club', departmentId: 1 },
       departments: [{ department: { id: 1, name: 'CSE' } }],
+      _count: { registrations: 7 },
     });
     expect(summary.fee_amount).toBe('150.50');
+    expect(summary.registered_count).toBe(7);
     expect(summary.start_date).toBe('2030-01-10T04:00:00.000Z');
     expect(summary.organizer_club).toEqual({ id: 10, name: 'CSE Club' });
     expect(summary.departments).toEqual([{ id: 1, name: 'CSE' }]);
