@@ -15,7 +15,7 @@ test.describe('workspace shell', () => {
       'super admin',
       USERS.admin,
       'Super admin',
-      ['Overview', 'Profile', 'All clubs', 'Users', 'Memberships'],
+      ['Overview', 'Profile', 'All clubs', 'Users', 'Memberships', 'Dept admins'],
     ],
   ] as const) {
     test(`${who}: overview, navigation and account tag`, async ({ page }) => {
