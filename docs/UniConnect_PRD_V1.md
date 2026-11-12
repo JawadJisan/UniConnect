@@ -1386,6 +1386,7 @@ Calls Gemini to generate a 2–3 sentence engaging event description. Returns su
 | `PROFILE_UPDATED` | Own profile edited through `PATCH /users/me` (changed fields only; DECISIONS D24) |
 | `AVATAR_UPDATED` | Own avatar replaced (DECISIONS D24) |
 | `ASSIGN_COMMITTEE_MEMBER` | New `ClubCommitteeMember` inserted |
+| `COMMITTEE_MEMBER_UPDATED` | Committee position or years edited (DECISIONS D34) |
 | `END_COMMITTEE_TERM` | `is_current` set to false |
 | `ASSIGN_DEPT_ADMIN` | New `DepartmentAdminTerm` inserted |
 | `END_DEPT_ADMIN_TERM` | `is_current` set to false |
