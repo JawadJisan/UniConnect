@@ -22,6 +22,16 @@ export type EmailJob =
       currency: string;
       transactionId: string;
       url: string;
+    }
+  | {
+      /** A super_admin assigned the user as department admin (PRD FR-ADMIN-001 step 5). */
+      kind: 'dept-admin-assigned';
+      to: string;
+      name: string;
+      departmentName: string;
+      startDate: string;
+      endDate: string;
+      url: string;
     };
 
 let queue: Queue<EmailJob> | undefined;

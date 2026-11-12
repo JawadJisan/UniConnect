@@ -5,6 +5,7 @@ import {
   LayoutDashboardIcon,
   LayoutGridIcon,
   ReceiptTextIcon,
+  ShieldCheckIcon,
   UserRoundIcon,
   UsersIcon,
   type LucideIcon,
@@ -40,6 +41,7 @@ export const CLUBS_HREF = '/dashboard/clubs';
 export const MY_CLUB_HREF = '/dashboard/clubs/my-club';
 export const MEMBERSHIPS_HREF = '/dashboard/memberships';
 export const ADMIN_MEMBERSHIPS_HREF = '/dashboard/admin/memberships';
+export const DEPT_ADMINS_HREF = '/dashboard/admin/dept-admins';
 
 /** Roles that belong to a department, and so have a club of their own. */
 const DEPARTMENT_ROLES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
@@ -74,6 +76,12 @@ export const NAV: NavGroup[] = [
         href: ADMIN_MEMBERSHIPS_HREF,
         Icon: ReceiptTextIcon,
         roles: ['dept_admin', 'super_admin'],
+      },
+      {
+        label: 'Dept admins',
+        href: DEPT_ADMINS_HREF,
+        Icon: ShieldCheckIcon,
+        roles: ['super_admin'],
       },
     ],
   },
@@ -150,14 +158,14 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   dept_admin: [
     { text: "Edit your department's club details and fees", href: MY_CLUB_HREF },
     { text: "See and cancel your department's club memberships", href: ADMIN_MEMBERSHIPS_HREF },
-    { text: 'Assign committee members' },
+    { text: 'Assign committee members', href: MY_CLUB_HREF },
     { text: 'Verify blood donations in your department' },
     { text: 'Manage department events and post department announcements' },
   ],
   super_admin: [
     { text: 'Manage every user: suspend, activate and repair roles', href: ADMIN_USERS_HREF },
     { text: 'See club memberships and payments across departments', href: ADMIN_MEMBERSHIPS_HREF },
-    { text: 'Assign department admin terms' },
+    { text: 'Assign department admin terms', href: DEPT_ADMINS_HREF },
     { text: 'Verify blood donations in any department' },
     { text: 'Read the audit log' },
   ],

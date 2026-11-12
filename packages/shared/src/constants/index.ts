@@ -62,6 +62,18 @@ export const AUDIT_ACTIONS = {
   PAYMENT_COMPLETED: 'PAYMENT_COMPLETED',
   /** Payment failed or validation did not match the stored transaction (actor = system). */
   PAYMENT_FAILED: 'PAYMENT_FAILED',
+  /** A ClubCommitteeMember row was inserted (PRD FR-COMM-002). */
+  ASSIGN_COMMITTEE_MEMBER: 'ASSIGN_COMMITTEE_MEMBER',
+  /** A committee row's position or years changed (PRD FR-COMM-004, DECISIONS D34). */
+  COMMITTEE_MEMBER_UPDATED: 'COMMITTEE_MEMBER_UPDATED',
+  /** A committee row's is_current became false (endpoint, or the daily job as system). */
+  END_COMMITTEE_TERM: 'END_COMMITTEE_TERM',
+  /** A DepartmentAdminTerm was inserted (PRD FR-ADMIN-001). */
+  ASSIGN_DEPT_ADMIN: 'ASSIGN_DEPT_ADMIN',
+  /** A dept admin term's is_current became false (endpoint, or the daily job as system). */
+  END_DEPT_ADMIN_TERM: 'END_DEPT_ADMIN_TERM',
+  /** A current term was replaced by a new one in one transaction (PRD FR-ADMIN-003). */
+  RENEW_DEPT_ADMIN_TERM: 'RENEW_DEPT_ADMIN_TERM',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

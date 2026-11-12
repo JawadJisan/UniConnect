@@ -7,3 +7,5 @@ export * from './schemas/pagination.js';
 export * from './schemas/admin-user.js';
 export * from './schemas/club.js';
 export * from './schemas/membership.js';
+export * from './schemas/committee.js';
+export * from './schemas/dept-admin-term.js';

@@ -32,9 +32,13 @@ async function call<T>(run: () => Promise<T>): Promise<T> {
 const retryServerErrors = (count: number, err: unknown) =>
   ((err as { status?: number }).status ?? 0) >= 500 && count < 1;
 
-/** GET /api/v1/admin/users. Keeps the previous page on screen while the next one loads. */
-export function useAdminUsers(params: AdminUserListParams) {
+/**
+ * GET /api/v1/admin/users. Keeps the previous page on screen while the next one loads.
+ * `enabled: false` holds the request, e.g. until a picker has a search term.
+ */
+export function useAdminUsers(params: AdminUserListParams, { enabled = true } = {}) {
   return useQuery({
+    enabled,
     queryKey: [...ADMIN_USERS_KEY, 'list', params],
     queryFn: () =>
       call(async () => {

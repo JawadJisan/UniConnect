@@ -79,6 +79,12 @@ function serve({
       if (mine instanceof Error) throw mine;
       return ok(mine);
     }
+    // Editors' committee panel (D34); covered in committee.test.tsx.
+    if (url.endsWith('/committee')) {
+      return {
+        data: { success: true, data: [], meta: { page: 1, limit: 100, total: 0, total_pages: 1 } },
+      };
+    }
     if (url.startsWith('/v1/clubs/')) {
       if (detail instanceof Error) throw detail;
       return ok(detail);

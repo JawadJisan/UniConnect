@@ -80,3 +80,29 @@ export function membershipReceiptTemplate(job: ReceiptJob): Mail {
     ),
   };
 }
+
+type DeptAdminJob = Extract<EmailJob, { kind: 'dept-admin-assigned' }>;
+
+/** Sent after a dept admin term is committed (PRD FR-ADMIN-001). */
+export function deptAdminAssignedTemplate(job: DeptAdminJob): Mail {
+  const body = `You are now the department admin of ${job.departmentName}, from ${job.startDate} until ${job.endDate}.`;
+  const note = 'If you think this is a mistake, contact the university super admin.';
+  return {
+    to: job.to,
+    subject: `You are the ${job.departmentName} department admin`,
+    text: `Hi ${job.name},
+
+${body}
+
+Open your dashboard: ${job.url}
+
+${note}`,
+    html: layout(
+      `Hi ${job.name}, you are a department admin`,
+      body,
+      'Open dashboard',
+      job.url,
+      note,
+    ),
+  };
+}

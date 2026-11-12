@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useUpdateClub } from '@/hooks/use-clubs';
 import type { ApiError } from '@/lib/api';
 import { Panel } from '../../../_components/panel';
-import { applyServerError } from '../../profile/_components/server-errors';
+import { applyServerError } from '@/lib/server-errors';
 
 const FORM_ID = 'club-edit-form';
 

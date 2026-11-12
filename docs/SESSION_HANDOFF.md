@@ -4,89 +4,92 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Phase 4: memberships and payments (FR-MEM-001–005), end to end. The backend came first, then the frontend; each was planned in plan mode and approved before it was built. SSLCommerz is replaced by a mock behind a gateway interface. Branch `feat/memberships`, cut from `development` on 2026-11-11, committed and merged into `development` at your request.
+Phase 3, the rest: club committee (FR-COMM-001–004), dept admin terms (FR-ADMIN-001–004), the term-expiry jobs (FR-ADMIN-005), and their UI. Built backend first, then the frontend; each was planned in plan mode and approved. Branch `feat/committee-admin-terms`, cut from `development` on 2026-11-12, committed and merged into `development` on 2026-11-12 (not pushed).
 
 Your choices:
 
-- **D11:** a `scheduled` status and a partial unique index on pending-or-scheduled rows (ADR 0001).
-- **Jobs now:** expiry (which also starts scheduled renewals), stale-checkout cleanup and the receipt email. The reconcile job waits for the real gateway.
-- **Migration:** approved separately for `development` and for `test`.
+- **PRD #10 and #11:** confirmed.
+- **Renew:** included.
+- **Committee expiry:** the PRD year rule.
+- **Picker:** a new candidates endpoint.
+- **Badges:** uppercase `CURRENT`/`ENDED`.
+
+Housekeeping first:
+
+- `feat/memberships` was already merged.
+- `pnpm db:seed` ran on Neon `development` after I checked the branch. Result: CSE, ECE and BBA plus their clubs.
 
 ## Completed work
 
-### Backend (D32)
+No schema change, no migration, no new dependency.
 
-- **Migration** `20261111171335_membership_scheduled_status`: the `scheduled` status in the CHECK, plus `one_open_membership_per_user_club`.
-- **Gateway:** `src/lib/payments/` holds the `PaymentGateway` interface and the mock. `PAYMENT_GATEWAY=mock` is refused in production. Going live means adding one file, `sslcommerz.gateway.ts`.
-- **Routes:**
-  - `/api/v1/memberships`: purchase, `my`, renew, cancel, and the public `payment/ipn`
-  - `GET /api/v1/admin/memberships`
-  - `requireUserType` was added to the auth middleware
-- **IPN:** validated through the gateway, and idempotent. An IPN it can't verify changes nothing. Lock order everywhere: the membership row, then the payment row.
-- **Jobs:** BullMQ queue `memberships`, worker in the API process. The expiry job runs daily at 00:05 Asia/Dhaka; the stale-checkout job every 15 minutes.
-- **Receipt:** a `membership-receipt` email job.
+### Backend (D34)
 
-### Frontend (D33)
+- **`src/modules/committee/`**, under `/api/v1/clubs/:id/committee`:
+  - list
+  - `candidates` (club editors; active students and faculty of the club's department; no email)
+  - assign, edit, end-term
+- **`src/modules/dept-admin-terms/`**, at `/api/v1/admin/dept-admin-terms`, super admin only: list, assign, end, renew.
+- **Locks:** the order is club or department → user (D12) → term row. Ending a term re-checks `is_current` under the lock.
+- **P2002:** mapped to specific 409s by index name (`src/lib/prisma-errors.ts`).
+- **Jobs:** queue `terms` (`src/queues/term.queue.ts`, `src/workers/term.worker.ts`) runs `expire-dept-admin-terms` and `expire-committee-terms` daily at 00:05 Asia/Dhaka, through the same path as the endpoints, with actor null.
+- **Email:** `dept-admin-assigned`, queued after commit.
 
-- **`/dashboard/memberships`:**
-  - the status `Panel` (`SYS.MEMBERSHIP.STATUS`) with uppercase status badges
-  - the plan `Dialog`: radio cards, RHF + zod; it redirects through `lib/checkout-redirect.ts`
-  - cancel and cancel-checkout confirmation
-  - the `?checkout=` banner, with polling until the payment is confirmed
-  - history in a TanStack `DataTable`
-- **`/dashboard/admin/memberships`:** status, plan and club filters in the URL (club for super admins only), plus a cancel button per row.
-- **`/dashboard/memberships/checkout/mock`:** the sandbox page, dev-only; it posts the IPN.
+### Frontend (D35)
+
+- **Club page:** the Committee cell is now `committee-panel.tsx`.
+  - Viewers see the read-only current list.
+  - Editors see current and past terms in a `DataTable`, with a Current/All toggle, Edit, a `destructive` End term, and Assign member.
+  - Dialogs: `assign-committee-dialog.tsx`, `edit-committee-dialog.tsx`, `end-committee-term-dialog.tsx`.
+  - `committee-table.tsx` was removed.
+- **`/dashboard/admin/dept-admins`**, super admins only:
+  - URL filters, server pages, Renew and End early.
+  - Dialogs: assign, renew and end.
+  - The faculty search reuses `GET /admin/users`.
 - **Shared pieces:**
-  - `components/data-table.tsx` (TanStack Table v9), `membership-status-badge.tsx`, `cancel-membership-dialog.tsx`
-  - `(app)/_components/list-controls.tsx`: `Pager` and `FilterSelect`, moved out of the admin users page
-  - `hooks/use-memberships.ts`, `lib/membership.ts`, `lib/mock-gateway.ts`
-- **Nav:**
-  - `NavItem.userTypes`; `visibleNav({ role, userType })`
-  - "Membership" for students, "Memberships" for dept and super admins
-  - overview capability links
-- **Jest:** `jest.config.mjs` lets `@tanstack/*` through the transform, because v9 is ESM-only. This is test config only.
-- **E2E seed:** the CSE club gets monthly `500.00` and yearly `5000.00` fees.
+  - `components/person-picker.tsx` (native radios, 300 ms debounce, disabled-with-reason rows)
+  - `components/term-status-badge.tsx`
+  - `lib/terms.ts`
+  - `hooks/use-committee.ts` and `hooks/use-dept-admin-terms.ts`
+  - `useAdminUsers` gained an `enabled` option
+  - `applyServerError` moved to `lib/server-errors.ts`
+- **Nav:** "Dept admins" for super admins, and two capability links.
 
 ### Docs
 
 - `DECISIONS.md`:
-  - D32 and D33
-  - D11 resolved; issue 13 resolved; §3 objects
-  - PRD #6 and #8 built as default; #22 built
-- ADR 0001.
-- PRD FR-MEM and §20 audit actions.
-- `DATABASE_SCHEMA_V1.md`.
-- `DESIGN.md` §7 (data table, membership page and badge, admin memberships list, sandbox checkout) and §11.
-- `TASKS.md` and `CLAUDE.md`.
+  - PRD #10 and #11 confirmed
+  - D12 built for terms
+  - issue 6 resolved
+  - D34 and D35
+- PRD §20 (`COMMITTEE_MEMBER_UPDATED`).
+- `DESIGN.md` §7 (committee panel, person picker, term badge, dept admins list) and §11.
+- `TASKS.md` (Phase 3 done) and `CLAUDE.md`.
 
 ## Database/migration changes
 
-`20261111171335_membership_scheduled_status`:
-
-- Applied to `development` (`db:migrate`; `db:status` up to date).
-- Applied to `test` (`db:test:deploy`).
-- `production` was not touched.
-- The E2E seed reset the `test` branch.
+None. The seed ran on `development`; tests reset the `test` branch's user tables.
 
 ## Commands executed and results
 
 - `pnpm typecheck`, `pnpm lint` and `pnpm format:check` pass.
-- **Backend unit:** 12 suites, 187/187.
-- **Backend integration:** 9 suites, 284/284, including the RBAC matrix. The first memberships run went 36/39 because of a test-helper bug that bought the wrong department's club; the helper was fixed.
-- **Frontend unit:** 18 suites, 244/244.
-- **`pnpm run e2e`:** 30 passed, 1 failed.
-  - The failure was in the new spec: `getByText('Ayesha Rahman')` also matched the cancel button's screen-reader label, which Playwright's strict mode rejects.
-  - With `exact: true`, `memberships.spec.ts` alone passed 5/5.
-  - The other 26 tests passed in the full run.
-- **`impeccable detect`** on the new UI files: no findings, but in regex-only mode, which is an undercount.
+- **Backend unit:** 13 suites, 215/215.
+- **Backend integration:**
+  - **Before the candidates endpoint:** the full suite passed, 11 suites, 387/387.
+  - **After it:** `committee.int` plus `rbac-matrix` gave 208/209.
+    - The one failure was a test bug: search results were crowded by earlier test users.
+    - After the fix, the candidates tests passed 8/8 (`-t candidates`).
+  - **Final full rerun:** 11 suites, 401/401.
+- **Frontend unit:** 20 suites, 265/265.
+- **E2E (`pnpm e2e`):** the first run had 31 passed and 2 failed, both test bugs.
+  - Failure 1: `shell.spec` expected the old super-admin nav, without "Dept admins".
+  - Failure 2: the `terms.spec` sign-out helper expected `/login`, but sign out goes to `/`.
+  - **Final full rerun:** 33/33.
 
 ## Not covered
 
-- The real SSLCommerz gateway and the reconcile job.
-- A manual `pnpm dev` check on `development`: it has no departments or clubs until `db:seed` is approved there.
-- A full rerun of the whole E2E suite after the one-line locator fix; only the memberships spec was rerun.
-- `impeccable detect` against a running page.
-- OpenAPI entries (task 1c).
+- A manual `pnpm dev` check on `development`.
+- `impeccable detect`.
 
 ## Current blockers
 
@@ -94,19 +97,20 @@ None.
 
 ## Approved decisions and ADR links
 
-D11, D32, D33, [ADR 0001](adr/0001-membership-states.md).
+PRD #10, #11; D12 (built for terms); D34; D35.
 
 ## Risks and unresolved questions
 
-- **Paid after cancel:** a payment validated after its membership was cancelled is recorded `completed`, the membership stays cancelled, and someone has to refund it by hand (D32).
-- **One shared Redis:** `pnpm dev` and the E2E API use the same Redis, so a scheduled membership job may run on either server's worker against its database. The email queue already behaves this way. Separate them before deployment.
-- **Failure notices:** an IPN with no `val_id` (a cancel or fail notice) is ignored, and the stale job closes the row after 30 minutes.
-- **Still open from before:** H1, L3–L6, I1–I6, D16, and the `development` branch has no departments.
+- **One seat per user in practice:** one department each, and one club per department.
+- **Ending is not backdating:** ending a term early leaves its end date as it was.
+- **Neon cold start:** a cold `test` branch can push the first suite's `beforeAll` past 30 s.
+- **One shared Redis:** the `terms` and `memberships` queues are shared by `pnpm dev` and the E2E API.
+- **PRD #3 (moderator scope):** still pending; events need it.
 
 ## Exact next task
 
-Phase 3, the rest: committee endpoints (assign, edit, end term) and dept admin terms. They need PRD decisions #3, #10 and #11 and the D12 user-row lock. Task 1b (a demo dept_admin and moderator in the E2E seed) would let E2E cover admin editors.
+Phase 5 (events). PRD #3 (own club only), #7 (`EventDepartment` rule) and #16 (hard cap, no waitlist, free only; `is_paid`/`fee_amount` shown, paid at the venue) were answered on 2026-11-12. Record them in `DECISIONS.md` on `feat/events`, then plan the events backend.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` D12, D31–D33. Plan the committee and dept-admin-term endpoints (Phase 3) in plan mode, after confirming PRD decisions #3, #10, #11.
+> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` D34–D35. Record PRD #3, #7 and #16 as answered, then plan the Phase 5 (events) backend in plan mode.

@@ -29,7 +29,7 @@ describe('workspace navigation', () => {
     ]);
   });
 
-  it('gives super admins All clubs but no My club, and the Admin group with Users and Memberships', () => {
+  it('gives super admins All clubs but no My club, and the Admin group with Users, Memberships and Dept admins', () => {
     const viewer = { role: 'super_admin', userType: 'super_admin' } as const;
     expect(visibleNav(viewer).map((g) => g.label)).toEqual(['You', 'Clubs', 'Admin']);
     expect(hrefs(visibleNav(viewer))).toEqual([
@@ -38,6 +38,7 @@ describe('workspace navigation', () => {
       '/dashboard/clubs',
       '/dashboard/admin/users',
       '/dashboard/admin/memberships',
+      '/dashboard/admin/dept-admins',
     ]);
     expect(activeHref('/dashboard/admin/users/abc')).toBe('/dashboard/admin/users');
     expect(activeHref('/dashboard/memberships/checkout/mock')).toBe('/dashboard/memberships');

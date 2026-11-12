@@ -20,7 +20,7 @@ import { toast } from '@/components/ui/sonner';
 import { useUpdateMe } from '@/hooks/use-me';
 import type { ApiError } from '@/lib/api';
 import { Panel } from '../../../_components/panel';
-import { applyServerError } from './server-errors';
+import { applyServerError } from '@/lib/server-errors';
 
 const FORM_ID = 'personal-form';
 

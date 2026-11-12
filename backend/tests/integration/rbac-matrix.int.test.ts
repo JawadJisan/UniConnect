@@ -30,6 +30,8 @@ const CLUB_EDITORS: readonly Role[] = ['dept_admin', 'super_admin'];
 const STUDENT_TYPE: readonly Role[] = ['student', 'moderator'];
 const ADMINS: readonly Role[] = ['dept_admin', 'super_admin'];
 const NO_MEMBERSHIP = 999999;
+/** A committee row or term id that doesn't exist: authorization passes, then 400 or 404. */
+const NO_ROW = 999999;
 let cseClub = 0;
 
 interface Policy {
@@ -71,6 +73,35 @@ const POLICY: Policy[] = [
   // Owner, the club's dept_admin or super_admin; the service answers 404 to anyone else.
   { method: 'patch', path: `/api/v1/memberships/${NO_MEMBERSHIP}/cancel`, allowed: ALL },
   { method: 'get', path: '/api/v1/admin/memberships', allowed: ADMINS },
+  // Committee (D34): anyone signed in reads it; the club's dept_admin or super_admin manages it.
+  { method: 'get', path: '/api/v1/clubs/:club/committee', allowed: ALL },
+  {
+    method: 'get',
+    path: '/api/v1/clubs/:club/committee/candidates?search=a',
+    allowed: CLUB_EDITORS,
+  },
+  { method: 'post', path: '/api/v1/clubs/:club/committee', allowed: CLUB_EDITORS, body: {} },
+  {
+    method: 'patch',
+    path: `/api/v1/clubs/:club/committee/${NO_ROW}`,
+    allowed: CLUB_EDITORS,
+    body: {},
+  },
+  {
+    method: 'patch',
+    path: `/api/v1/clubs/:club/committee/${NO_ROW}/end-term`,
+    allowed: CLUB_EDITORS,
+  },
+  // Dept admin terms (D34): super_admin only.
+  { method: 'get', path: '/api/v1/admin/dept-admin-terms', allowed: SUPER },
+  { method: 'post', path: '/api/v1/admin/dept-admin-terms', allowed: SUPER, body: {} },
+  { method: 'patch', path: `/api/v1/admin/dept-admin-terms/${NO_ROW}/end`, allowed: SUPER },
+  {
+    method: 'post',
+    path: `/api/v1/admin/dept-admin-terms/${NO_ROW}/renew`,
+    allowed: SUPER,
+    body: {},
+  },
 ];
 
 const ACCOUNTS: Record<Role, { userType: 'student' | 'faculty' | 'super_admin' }> = {
