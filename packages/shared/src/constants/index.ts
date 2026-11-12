@@ -74,6 +74,18 @@ export const AUDIT_ACTIONS = {
   END_DEPT_ADMIN_TERM: 'END_DEPT_ADMIN_TERM',
   /** A current term was replaced by a new one in one transaction (PRD FR-ADMIN-003). */
   RENEW_DEPT_ADMIN_TERM: 'RENEW_DEPT_ADMIN_TERM',
+  /** A draft event was inserted (PRD FR-EVENT-001). */
+  EVENT_CREATED: 'EVENT_CREATED',
+  /** An event's fields or poster changed (FR-EVENT-002, FR-EVENT-004; DECISIONS D36). */
+  EVENT_UPDATED: 'EVENT_UPDATED',
+  /** status draft → published (FR-EVENT-003). */
+  EVENT_PUBLISHED: 'EVENT_PUBLISHED',
+  /** status → cancelled (FR-EVENT-005). */
+  EVENT_CANCELLED: 'EVENT_CANCELLED',
+  /** status published → completed; remaining registrations became no_show (FR-EVENT-012). */
+  EVENT_COMPLETED: 'EVENT_COMPLETED',
+  /** An organizer checked a registrant in (FR-EVENT-010). */
+  EVENT_CHECK_IN: 'EVENT_CHECK_IN',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
