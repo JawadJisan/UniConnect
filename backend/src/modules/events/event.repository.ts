@@ -27,6 +27,10 @@ export const EVENT_SELECT = {
     select: { department: { select: { id: true, name: true } } },
     orderBy: { department: { name: 'asc' } },
   },
+  // Seats taken: `registered` and `attended` (the same statuses as countSeated).
+  _count: {
+    select: { registrations: { where: { status: { in: ['registered', 'attended'] } } } },
+  },
 } satisfies Prisma.EventSelect;
 
 export type EventRow = Prisma.EventGetPayload<{ select: typeof EVENT_SELECT }>;
@@ -271,8 +275,17 @@ export const eventRepository = {
       ORDER BY u.id LIMIT ${take}`;
   },
 
-  /** Who gets the cancellation email: everyone still `registered`. */
-  cancelRecipients(db: Db, eventId: number, afterId: string | null, take: number) {
+  /** Published events starting in `(from, to]`, for the daily reminder run. Ids only. */
+  findStartingBetween(db: Db, from: Date, to: Date) {
+    return db.event.findMany({
+      where: { status: 'published', startDate: { gt: from, lte: to } },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+  },
+
+  /** Who gets the cancellation and reminder emails: active users still `registered`. */
+  registrantRecipients(db: Db, eventId: number, afterId: string | null, take: number) {
     return db.user.findMany({
       where: {
         isActive: true,

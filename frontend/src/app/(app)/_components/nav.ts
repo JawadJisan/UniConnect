@@ -1,11 +1,14 @@
 import type { Role, UserType } from '@uniconnect/shared';
 import {
+  CalendarDaysIcon,
+  CalendarPlusIcon,
   HouseIcon,
   IdCardIcon,
   LayoutDashboardIcon,
   LayoutGridIcon,
   ReceiptTextIcon,
   ShieldCheckIcon,
+  TicketIcon,
   UserRoundIcon,
   UsersIcon,
   type LucideIcon,
@@ -42,9 +45,15 @@ export const MY_CLUB_HREF = '/dashboard/clubs/my-club';
 export const MEMBERSHIPS_HREF = '/dashboard/memberships';
 export const ADMIN_MEMBERSHIPS_HREF = '/dashboard/admin/memberships';
 export const DEPT_ADMINS_HREF = '/dashboard/admin/dept-admins';
+export const EVENTS_HREF = '/dashboard/events';
+export const MY_REGISTRATIONS_HREF = '/dashboard/events/my-registrations';
+export const NEW_EVENT_HREF = '/dashboard/events/new';
 
 /** Roles that belong to a department, and so have a club of their own. */
 const DEPARTMENT_ROLES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
+
+/** Roles that create and manage events (PRD #3); the API checks the club itself. */
+const ORGANIZER_ROLES: readonly Role[] = ['moderator', 'dept_admin', 'super_admin'];
 
 /**
  * Every signed-in destination, grouped as the sidebar shows them. Only routes that exist are
@@ -65,6 +74,19 @@ export const NAV: NavGroup[] = [
       { label: 'My club', href: MY_CLUB_HREF, Icon: HouseIcon, roles: DEPARTMENT_ROLES },
       { label: 'All clubs', href: CLUBS_HREF, Icon: LayoutGridIcon },
       { label: 'Membership', href: MEMBERSHIPS_HREF, Icon: IdCardIcon, userTypes: ['student'] },
+    ],
+  },
+  {
+    label: 'Events',
+    items: [
+      { label: 'Browse events', href: EVENTS_HREF, Icon: CalendarDaysIcon },
+      {
+        label: 'My registrations',
+        href: MY_REGISTRATIONS_HREF,
+        Icon: TicketIcon,
+        roles: DEPARTMENT_ROLES,
+      },
+      { label: 'New event', href: NEW_EVENT_HREF, Icon: CalendarPlusIcon, roles: ORGANIZER_ROLES },
     ],
   },
   {
@@ -139,19 +161,22 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
       text: "Join your department's club with a monthly or yearly membership",
       href: MEMBERSHIPS_HREF,
     },
-    { text: 'Browse events and register, including other departments� public events' },
+    {
+      href: EVENTS_HREF,
+      text: 'Browse events and register, including other departments� public events',
+    },
     { text: 'Record your blood donations and answer blood requests' },
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
   ],
   faculty: [
     { text: "View your department's club and its announcements", href: MY_CLUB_HREF },
-    { text: 'Browse events and register' },
+    { text: 'Browse events and register', href: EVENTS_HREF },
     { text: 'Record your blood donations and answer blood requests' },
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
   ],
   moderator: [
-    { text: "Create, publish and cancel your club's events" },
-    { text: 'Check attendees in and export registrations' },
+    { text: "Create, publish and cancel your club's events", href: NEW_EVENT_HREF },
+    { text: 'Check attendees in and export registrations', href: EVENTS_HREF },
     { text: 'Post announcements to your club' },
     { text: 'Everything your student or faculty account already allows' },
   ],
@@ -160,7 +185,7 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     { text: "See and cancel your department's club memberships", href: ADMIN_MEMBERSHIPS_HREF },
     { text: 'Assign committee members', href: MY_CLUB_HREF },
     { text: 'Verify blood donations in your department' },
-    { text: 'Manage department events and post department announcements' },
+    { text: 'Manage department events and post department announcements', href: EVENTS_HREF },
   ],
   super_admin: [
     { text: 'Manage every user: suspend, activate and repair roles', href: ADMIN_USERS_HREF },

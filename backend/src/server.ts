@@ -4,7 +4,7 @@ import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
 import { redis } from './lib/redis.js';
 import { closeEmailQueue } from './queues/email.queue.js';
-import { closeEventQueue } from './queues/event.queue.js';
+import { closeEventQueue, scheduleEventJobs } from './queues/event.queue.js';
 import { closeMembershipQueue, scheduleMembershipJobs } from './queues/membership.queue.js';
 import { closeTermQueue, scheduleTermJobs } from './queues/term.queue.js';
 import { startEmailWorker } from './workers/email.worker.js';
@@ -23,6 +23,9 @@ scheduleTermJobs().catch((err: Error) => {
   logger.error(`term job schedules not registered: ${err.message}`);
 });
 const eventWorker = startEventWorker();
+scheduleEventJobs().catch((err: Error) => {
+  logger.error(`event job schedules not registered: ${err.message}`);
+});
 
 const server = app.listen(env.PORT, () => {
   logger.info(`API listening on http://localhost:${env.PORT}`);

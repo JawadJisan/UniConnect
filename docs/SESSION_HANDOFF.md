@@ -4,108 +4,86 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Phase 5, part 1: the events backend (FR-EVENT-001–012). Planned in plan mode and approved on 2026-11-12. Branch `feat/events`, cut from `development` after Phase 3 was merged (805d815). **Not committed** (commit only when asked). The frontend plan comes after the backend is verified.
+Approved 2026-11-13:
 
-Earlier the same day, Phase 3 was committed (5 commits) and merged into `development` as 805d815, after:
-
-- a full integration run: 401/401
-- a full E2E run: 33/33
-
-Decisions you made:
-
-- **PRD #3:** moderators manage events of their own committee club only.
-- **PRD #7:** the `EventDepartment` rule.
-- **PRD #16:** hard cap, no waitlist, manual check-in, free only; `is_paid` and `fee_amount` are shown, and the fee is paid at the venue.
-- **Publish email:** goes to eligible users only.
-- **Completing an event:** marks remaining registrations `no_show`.
-- **Registrant lists:** carry no email.
+- **Step 1:** finish Phase 5. Run the E2E suite, add the `event-reminders` job, commit on `feat/events`, merge into `development`.
+- **Step 2:** record the Phase 6 decisions (PRD #17, D15 / issue 14) and the planned announcements backend rules (D38).
+- **Step 3:** present the Phase 6 Part 1 backend plan (FR-ANNOUNCE-001–004). **No announcements code until the user approves.**
 
 ## Completed work
 
-No schema change, no migration, no new dependency.
+### E2E fixes (spec-only, app unchanged)
 
-- **Shared:**
-  - `schemas/event.ts`: create, update, list, my-registrations and registrations queries, params, response types, `POSTER_FIELD`
-  - six event audit actions
-- **`src/modules/events/`:**
+- **`e2e/events.spec.ts`:**
+  - Badge assertions now use the DOM text (`Draft`, `Registered`, `Attended`). The uppercase look is CSS only.
+  - Seat counts are scoped to the About region; the Registration panel shows them too.
+- **`e2e/shell.spec.ts`:** the sidebar lists include the Events group:
+  - attendees: Browse events, My registrations
+  - super admin: Browse events, New event
 
-  | File                         | Contents                                                                                               |
-  | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-  | `event.access.ts`            | Pure rules: `canManageWith`, `canSeeWith`, `isEligibleWith`                                            |
-  | `event.repository.ts`        | Browse SQL with the same visibility rule; `lockForRegistration` and `seatsAndMine`; fan-out recipients |
-  | `registration.repository.ts` | Registration rows                                                                                      |
-  | `event.service.ts`           | Create, list, detail, update, poster, publish, cancel, complete; `registerBlock`                       |
-  | `registration.service.ts`    | Register, cancel, mine, list and CSV, check-in                                                         |
-  | `event.mapper.ts`            | Row → API mapping; CSV with formula-injection escaping                                                 |
-  | `event.notify.ts`            | The fan-out                                                                                            |
-  | Controller and routes        | Mounted at `/api/v1/events`                                                                            |
+### `event-reminders` job (PRD §11, D36 updated)
 
-- **Queue `events`:** `src/queues/event.queue.ts` and `src/workers/event.worker.ts`. Each job pages 500 recipients and saves a cursor.
-- **Email:** kinds `event-published`, `event-cancelled` and `event-registered`. `enqueueEmail` takes an optional `jobId`.
-- **Uploads:** `uploadEventPoster` and `posterUpload`.
-- **Tests:**
-  - `tests/events.test.ts` (unit, 30)
-  - `tests/integration/events.int.test.ts` (33)
-  - `tests/integration/event-registrations.int.test.ts` (18)
-  - 13 RBAC matrix rows
-  - The harness mocks `event.queue.js` (`eventJobs`).
-  - The four existing Cloudinary mocks gained `uploadEventPoster`.
-  - Both event suites use `jest.setTimeout(180_000)`.
-- **Docs:**
-  - `DECISIONS.md`: PRD #3, #7, #16 confirmed; #21 now includes posters; D36
-  - PRD §20 (3 actions), `TASKS.md` (Phase 5 in progress), `CLAUDE.md`
+- **`queues/event.queue.ts`:**
+  - `EVENT_JOBS.REMINDERS`
+  - `scheduleEventJobs()`, daily 18:00 Asia/Dhaka
+  - `NotifyEventJob.kind` gains `reminder`
+- **`event.service.ts` `sendReminders(now)`:**
+  - Selects published events starting in `(now, now + 24h]` (`eventRepository.findStartingBetween`).
+  - Claims each event with Redis `SET event-reminder:<id> NX EX 48h`; the claim is dropped if queueing fails.
+  - Queues a `reminder` fan-out.
+- **`event.notify.ts`:**
+  - Handles `reminder`, which needs `status = published`.
+  - Recipients come from `registrantRecipients`, renamed from `cancelRecipients`: active users still `registered`.
+  - Email kind is `event-reminder`, with job id `event-reminder-<event>-<user>`.
+- **Email:** new kind `event-reminder` (subject "Reminder: {title} is tomorrow", PRD §22), with its template and email worker case.
+- **Wiring:** the event worker dispatches `event-reminders`, and `server.ts` registers the schedule.
+- **Test harness:** `FakeRedis` gains `set` (EX/NX) and `del`, and the event queue mock gains `reminder`, `EVENT_JOBS` and `scheduleEventJobs`.
 
-### Bug found and fixed during testing
+### Docs
 
-The 10-into-3 parallel test caught two problems in turn:
-
-1. **500s under load.** The first design did several round trips under the event lock. On a slow link, queued registrations hit Prisma's 10 s transaction timeout and returned 500.
-2. **Overbooking from my first fix.** It locked the event and counted seats in one statement. A waiting `FOR UPDATE` re-checks only the locked row, so the count kept its pre-wait snapshot and 10 of 10 got seats.
-
-**Final design:**
-
-- Visibility and eligibility are checked before the lock.
-- One statement locks and reads the event.
-- The next statement counts seats and reads the caller's row.
-- Register and cancel-registration use `lock_timeout` 15 s and a 25 s transaction; past that, the caller gets 503 `EVENT_BUSY`.
+- **`DECISIONS.md`:**
+  - PRD #17 confirmed.
+  - Issue 14 and D15 confirmed, with the full visibility rule.
+  - D36 describes the reminders.
+  - New section with **D38** (announcements backend rules, planned, not built).
+- **`TASKS.md`:** Phase 5 Done, Phase 6 Next.
+- **`CLAUDE.md`:** the `events` queue line now mentions the reminder job.
 
 ## Commands executed and results
 
-- `pnpm typecheck`, `pnpm lint` and `pnpm format:check` pass.
-- **Backend unit:** 14 suites, 245/245.
-- **Event integration suites**, after the final fix:
-  - `event-registrations.int`: passed 18/18, including the 10-into-3 race (3 × 201, 7 × `EVENT_FULL`) and the 5 parallel double submits (one row).
-  - `events.int`: 32/33 in that run. "Refuses to publish an event whose start has passed" returned 500. A rerun of its describe block passed 5/5. The cause wasn't confirmed; logging is silenced in tests. Likely a 10 s transaction timeout on a very slow run (about 21 s per test).
-- **Earlier runs today:** some hit network outages ("Can't reach database server").
-- **Full integration suite:** **not completed.** Claude Code stopped it because the machine was low on memory. Before that, `memberships.int` (unchanged code) failed in 45 s, mostly on timeouts and "environment torn down" errors. My backend unit run had regenerated the Prisma client during it. Not diagnosed.
-- **RBAC matrix:** not run on its own yet.
+| Command                                               | Result                                                                                                                              |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm e2e events.spec.ts`, first run                  | 2 failed: login hung once, then badge-case locators (spec bugs)                                                                     |
+| `pnpm e2e`, first full run                            | 28 passed, 7 failed: events ×2 and shell ×3 (spec bugs, fixed); clubs and terms (both passed on a rerun, so transient against Neon) |
+| `pnpm e2e clubs terms events shell`                   | 10 passed, 1 failed (an ambiguous seat locator, fixed)                                                                              |
+| `pnpm e2e events.spec.ts`                             | 2/2 passed                                                                                                                          |
+| `pnpm e2e`, final full run                            | **35/35 passed** (12.2 min)                                                                                                         |
+| `test:integration events.int event-registrations.int` | **55/55 passed**, including 3 new reminder tests (after fixing one test that called a missing `delete` helper)                      |
+| Backend unit tests                                    | 246/246                                                                                                                             |
+| Frontend unit tests                                   | 313/313                                                                                                                             |
+| `pnpm typecheck`, `pnpm lint`, `pnpm format:check`    | pass                                                                                                                                |
 
 ## Not covered
 
-- A full integration run, including `rbac-matrix` and a `memberships.int` rerun.
-- A manual `pnpm dev` smoke test.
-- The `event-reminders` job (PRD §11), which wasn't in the plan.
-
-## Current blockers
-
-None in code. The Neon `test` link was slow and dropped several times this session.
-
-## Approved decisions and ADR links
-
-PRD #3, #7, #16 (confirmed 2026-11-12); D36.
+- **Full backend integration suite:** not rerun (it takes about 50 minutes; it was 531/531 on 2026-11-12, before the reminder change). The reminder change touched only events files and the harness, and both event suites ran.
+- **Worker dispatch for `event-reminders`:** no unit test; it's a two-line branch.
+- **BullMQ scheduler with real Redis:** not exercised in tests (the queue is mocked).
 
 ## Risks and unresolved questions
 
-- **`.claude/rules/backend.md`** still says the capacity-lock pattern is unsettled. Changing `.claude/` needs your approval; it is now settled in D36.
-- **The global Prisma transaction timeout is 10 s.** It is fine with low database latency, but very slow links can turn long organizer transactions into 500s.
-- **Fan-out recipients:** they are counted only by integration tests, with the queue mocked. The BullMQ worker itself didn't run.
+- The `ImageDropZone` preview is square; wide posters show with bands. Acceptable for V1.
+- The 375px events E2E test relies on the event the first test in the same file creates.
+- Clubs and terms E2E each failed once in a full run and passed on rerun. Watch for flakiness.
 
 ## Exact next task
 
-1. Run `pnpm --filter @uniconnect/backend test:integration` alone (nothing else running). If `memberships.int` or `events.int` fails, diagnose before going on.
-2. Commit `feat/events` when you ask.
-3. Plan the events frontend.
+Phase 6 Part 1: the announcements backend. The plan is in D38; wait for the user's approval, then build:
+
+- shared schemas
+- the `modules/announcements/` module
+- unit and integration tests
+- RBAC matrix rows
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, `docs/SESSION_HANDOFF.md` and `docs/DECISIONS.md` D36. Run the full backend integration suite on its own, fix any failures, then plan the events frontend in plan mode.
+> Read `CLAUDE.md`, this file and D15/D38 in `docs/DECISIONS.md`. If the user has approved the announcements backend plan, build it on a new branch `feat/announcements` from `development`.

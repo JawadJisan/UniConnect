@@ -36,9 +36,10 @@ export type EmailJob =
   | {
       /**
        * Event emails (PRD FR-EVENT-003, -005, -007; DECISIONS D36): a new event the reader may
-       * attend, a cancellation for registrants, and a registration confirmation.
+       * attend, a cancellation for registrants, a registration confirmation, and the reminder
+       * the day before (PRD §11 `event-reminders`).
        */
-      kind: 'event-published' | 'event-cancelled' | 'event-registered';
+      kind: 'event-published' | 'event-cancelled' | 'event-registered' | 'event-reminder';
       to: string;
       name: string;
       title: string;

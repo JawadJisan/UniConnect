@@ -30,7 +30,8 @@ const h = await loadHarness();
 const { app, prisma } = h;
 const { toDbDate, todayInDhaka, addDays } = await import('../../src/lib/dates.js');
 const { fanOutEventEmails } = await import('../../src/modules/events/event.notify.js');
-const { sentEmails } = await import('./harness.js');
+const { sentEmails, fakeRedis } = await import('./harness.js');
+const { eventService } = await import('../../src/modules/events/event.service.js');
 
 const POSTER_URL = 'https://res.cloudinary.com/demo/image/upload/v1/uniconnect/event-posters/e.png';
 const PNG = Buffer.concat([
@@ -647,5 +648,78 @@ describe('fan-out (DECISIONS D36)', () => {
     expect(sentEmails.map((m) => [m.kind, m.to])).toEqual([
       ['event-cancelled', 'student@events.test'],
     ]);
+  });
+});
+
+describe('event-reminders (PRD §11; DECISIONS D36)', () => {
+  const HOUR = 3600_000;
+  const now = new Date();
+  /** A published event starting `startMs` after `now`, two hours long. */
+  async function startingIn(startMs: number) {
+    const id = await published();
+    await setTimes(
+      id,
+      new Date(now.getTime() + startMs),
+      new Date(now.getTime() + startMs + 2 * HOUR),
+    );
+    return id;
+  }
+
+  beforeEach(async () => {
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE events RESTART IDENTITY CASCADE');
+    fakeRedis.reset();
+  });
+
+  it('queues published events starting in (now, now + 24h], once', async () => {
+    const inside = await startingIn(12 * HOUR);
+    const edge = await startingIn(24 * HOUR);
+    await startingIn(24 * HOUR + 60_000); // tomorrow's run
+    await startingIn(-HOUR); // already started
+    const draft = await createEvent();
+    await setTimes(draft, new Date(now.getTime() + 6 * HOUR), new Date(now.getTime() + 8 * HOUR));
+    const cancelled = await startingIn(6 * HOUR);
+    await as('dept_admin').patch(`/api/v1/events/${cancelled}/cancel`);
+    eventJobs.length = 0;
+
+    expect(await eventService.sendReminders(now)).toBe(2);
+    expect(eventJobs).toEqual([
+      { eventId: inside, kind: 'reminder' },
+      { eventId: edge, kind: 'reminder' },
+    ]);
+
+    // A rerun (retry, restart) finds the markers and queues nothing.
+    expect(await eventService.sendReminders(now)).toBe(0);
+    expect(eventJobs).toHaveLength(2);
+  });
+
+  it('emails only registrants still registered, with the reminder subject', async () => {
+    const id = await published();
+    await as('student').post(`/api/v1/events/${id}/register`);
+    await as('member').post(`/api/v1/events/${id}/register`);
+    const dropped = await request(app)
+      .delete(`/api/v1/events/${id}/register`)
+      .set('Origin', ORIGIN)
+      .set('Cookie', cookies.member);
+    expect(dropped.status).toBe(200);
+    const reg = await as('faculty').post(`/api/v1/events/${id}/register`);
+    const checkIn = await as('dept_admin').patch(
+      `/api/v1/events/${id}/registrations/${reg.body.data.id}/check-in`,
+    );
+    expect(checkIn.status).toBe(200);
+    sentEmails.length = 0;
+
+    expect(await fanOutEventEmails({ eventId: id, kind: 'reminder' }, async () => {})).toBe(1);
+    expect(sentEmails.map((m) => [m.kind, m.to])).toEqual([
+      ['event-reminder', 'student@events.test'],
+    ]);
+  });
+
+  it('sends no reminder once the event is cancelled', async () => {
+    const id = await published();
+    await as('student').post(`/api/v1/events/${id}/register`);
+    await as('dept_admin').patch(`/api/v1/events/${id}/cancel`);
+    sentEmails.length = 0;
+    expect(await fanOutEventEmails({ eventId: id, kind: 'reminder' }, async () => {})).toBe(0);
+    expect(sentEmails).toHaveLength(0);
   });
 });

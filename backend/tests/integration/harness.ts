@@ -46,6 +46,21 @@ export class FakeRedis {
     return [entry.count, Math.ceil((entry.expiresAt - now) / 1000)];
   }
 
+  /** `SET key value EX seconds NX`, as the event reminder marker uses it. */
+  async set(key: string, _value: string, _ex: 'EX', seconds: number) {
+    await this.alive();
+    const now = Date.now();
+    const entry = this.store.get(key);
+    if (entry && entry.expiresAt > now) return null;
+    this.store.set(key, { count: 1, expiresAt: now + seconds * 1000 });
+    return 'OK';
+  }
+
+  async del(key: string) {
+    await this.alive();
+    return this.store.delete(key) ? 1 : 0;
+  }
+
   keys() {
     return [...this.store.keys()];
   }
@@ -55,8 +70,9 @@ export const fakeRedis = new FakeRedis();
 export const sentEmails: EmailJob[] = [];
 /** Set `down` to make enqueueEmail reject, as it does when the queue's Redis is unreachable. */
 export const emailQueue = { down: false };
-/** Event fan-out jobs queued by publish and cancel (DECISIONS D36). */
-export const eventJobs: { eventId: number; kind: 'published' | 'cancelled' }[] = [];
+type EventJobKind = 'published' | 'cancelled' | 'reminder';
+/** Event fan-out jobs queued by publish, cancel and the reminder run (DECISIONS D36). */
+export const eventJobs: { eventId: number; kind: EventJobKind }[] = [];
 
 jest.unstable_mockModule('../../src/lib/redis.js', () => ({
   redis: fakeRedis,
@@ -73,9 +89,11 @@ jest.unstable_mockModule('../../src/queues/email.queue.js', () => ({
 jest.unstable_mockModule('../../src/queues/event.queue.js', () => ({
   EVENT_QUEUE: 'events',
   NOTIFY_EVENT_JOB: 'notify-event',
-  queueEventNotification: async (eventId: number, kind: 'published' | 'cancelled') => {
+  EVENT_JOBS: { REMINDERS: 'event-reminders' },
+  queueEventNotification: async (eventId: number, kind: EventJobKind) => {
     eventJobs.push({ eventId, kind });
   },
+  scheduleEventJobs: async () => {},
   closeEventQueue: async () => {},
 }));
 

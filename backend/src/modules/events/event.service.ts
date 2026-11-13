@@ -17,6 +17,7 @@ import { AppError, badRequest, conflict, forbidden } from '../../lib/http-error.
 import { isAllowedImage } from '../../lib/image.js';
 import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
+import { redis } from '../../lib/redis.js';
 import { INVALID_TYPE_MESSAGE } from '../../middleware/upload.js';
 import { queueEventNotification } from '../../queues/event.queue.js';
 import type { Db } from '../../repositories/audit.repository.js';
@@ -182,6 +183,10 @@ async function audit(
   });
 }
 
+/** How long a reminder marker lives: longer than the 24 h window, so a rerun finds it. */
+export const REMINDER_MARKER_TTL_S = 48 * 60 * 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /** Queues the publish or cancel fan-out after commit; a queue outage doesn't undo the change. */
 async function notify(eventId: number, kind: 'published' | 'cancelled') {
   try {
@@ -249,12 +254,11 @@ export const eventService = {
   async detail(caller: EventCaller, id: number): Promise<EventDetail> {
     const loaded = await loadVisible(prisma, caller, id);
     const { row } = loaded;
-    const [seated, mine] = await Promise.all([
-      eventRepository.countSeated(prisma, id),
+    const seated = row._count.registrations;
+    const mine =
       caller.role === 'super_admin'
-        ? Promise.resolve(null)
-        : registrationRepository.findForUser(prisma, caller.id, id),
-    ]);
+        ? null
+        : await registrationRepository.findForUser(prisma, caller.id, id);
     const block = registerBlock({
       role: caller.role,
       status: row.status,
@@ -267,7 +271,6 @@ export const eventService = {
     });
     return {
       ...toEventSummary(row),
-      registered_count: seated,
       my_registration: mine
         ? { id: mine.id, status: mine.status as EventRegistrationStatus }
         : null,
@@ -469,5 +472,33 @@ export const eventService = {
       );
     });
     return eventService.detail(caller, id);
+  },
+
+  /**
+   * PRD §11 `event-reminders`: queues one reminder fan-out per published event starting in
+   * `(now, now + 24h]`. A Redis marker per event (`SET NX`) makes a rerun queue nothing; the
+   * fan-out gives each email a per-recipient job id. Returns how many events were queued.
+   */
+  async sendReminders(now: Date = new Date()): Promise<number> {
+    const events = await eventRepository.findStartingBetween(
+      prisma,
+      now,
+      new Date(now.getTime() + DAY_MS),
+    );
+    let queued = 0;
+    for (const { id } of events) {
+      const key = `event-reminder:${id}`;
+      const fresh = await redis.set(key, '1', 'EX', REMINDER_MARKER_TTL_S, 'NX');
+      if (fresh !== 'OK') continue;
+      try {
+        await queueEventNotification(id, 'reminder');
+        queued += 1;
+      } catch (err) {
+        // Drop the marker so the job's retry tries this event again.
+        await redis.del(key);
+        throw err;
+      }
+    }
+    return queued;
   },
 };

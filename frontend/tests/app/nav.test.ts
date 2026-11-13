@@ -6,36 +6,60 @@ import { safeNext } from '@/lib/safe-next';
 
 const hrefs = (groups: NavGroup[]) => groups.flatMap((g) => g.items.map((i) => i.href));
 const BASE = ['/dashboard', '/dashboard/profile', '/dashboard/clubs/my-club', '/dashboard/clubs'];
+const EVENTS = ['/dashboard/events', '/dashboard/events/my-registrations'];
+const NEW_EVENT = '/dashboard/events/new';
 
 describe('workspace navigation', () => {
-  it.each([
-    ['a student', { role: 'student', userType: 'student' }],
-    ['a student moderator', { role: 'moderator', userType: 'student' }],
-  ] as const)('gives %s Membership, by account type (PRD §5)', (_label, viewer) => {
-    expect(hrefs(visibleNav(viewer))).toEqual([...BASE, '/dashboard/memberships']);
+  it('gives a student Membership, by account type (PRD §5), and the attendee event pages', () => {
+    expect(hrefs(visibleNav({ role: 'student', userType: 'student' }))).toEqual([
+      ...BASE,
+      '/dashboard/memberships',
+      ...EVENTS,
+    ]);
   });
 
-  it.each([
-    ['faculty', { role: 'faculty', userType: 'faculty' }],
-    ['a faculty moderator', { role: 'moderator', userType: 'faculty' }],
-  ] as const)('gives %s no Membership page', (_label, viewer) => {
-    expect(hrefs(visibleNav(viewer))).toEqual(BASE);
+  it('gives a student moderator Membership and New event', () => {
+    expect(hrefs(visibleNav({ role: 'moderator', userType: 'student' }))).toEqual([
+      ...BASE,
+      '/dashboard/memberships',
+      ...EVENTS,
+      NEW_EVENT,
+    ]);
   });
 
-  it('gives a dept_admin the Memberships admin list but no Membership page', () => {
+  it('gives faculty no Membership page and no New event', () => {
+    expect(hrefs(visibleNav({ role: 'faculty', userType: 'faculty' }))).toEqual([
+      ...BASE,
+      ...EVENTS,
+    ]);
+  });
+
+  it('gives a faculty moderator New event but no Membership page', () => {
+    expect(hrefs(visibleNav({ role: 'moderator', userType: 'faculty' }))).toEqual([
+      ...BASE,
+      ...EVENTS,
+      NEW_EVENT,
+    ]);
+  });
+
+  it('gives a dept_admin New event and the Memberships admin list but no Membership page', () => {
     expect(hrefs(visibleNav({ role: 'dept_admin', userType: 'faculty' }))).toEqual([
       ...BASE,
+      ...EVENTS,
+      NEW_EVENT,
       '/dashboard/admin/memberships',
     ]);
   });
 
-  it('gives super admins All clubs but no My club, and the Admin group with Users, Memberships and Dept admins', () => {
+  it('gives super admins All clubs, events without My registrations, and the Admin group', () => {
     const viewer = { role: 'super_admin', userType: 'super_admin' } as const;
-    expect(visibleNav(viewer).map((g) => g.label)).toEqual(['You', 'Clubs', 'Admin']);
+    expect(visibleNav(viewer).map((g) => g.label)).toEqual(['You', 'Clubs', 'Events', 'Admin']);
     expect(hrefs(visibleNav(viewer))).toEqual([
       '/dashboard',
       '/dashboard/profile',
       '/dashboard/clubs',
+      '/dashboard/events',
+      NEW_EVENT,
       '/dashboard/admin/users',
       '/dashboard/admin/memberships',
       '/dashboard/admin/dept-admins',
@@ -68,6 +92,10 @@ describe('workspace navigation', () => {
     expect(activeHref('/dashboard/profile/extra')).toBe('/dashboard/profile');
     expect(activeHref('/dashboard/clubs/my-club')).toBe('/dashboard/clubs/my-club');
     expect(activeHref('/dashboard/clubs/3')).toBe('/dashboard/clubs');
+    expect(activeHref('/dashboard/events/7/registrations')).toBe('/dashboard/events');
+    expect(activeHref('/dashboard/events/my-registrations')).toBe(
+      '/dashboard/events/my-registrations',
+    );
     expect(activeHref('/elsewhere')).toBeUndefined();
   });
 });

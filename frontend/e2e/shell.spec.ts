@@ -6,16 +6,32 @@ import { expectNoHorizontalScroll, logIn } from './helpers';
 
 test.describe('workspace shell', () => {
   // The sidebar comes from one table (nav.ts): everyone with a department gets "My club",
-  // students get "Membership" (by account type), and only admins get the Admin group.
+  // students get "Membership" (by account type), everyone browses events, everyone but the
+  // super admin registers, organizers create events, and only admins get the Admin group.
   const DEPARTMENT_LINKS = ['Overview', 'Profile', 'My club', 'All clubs'];
+  const ATTENDEE_EVENT_LINKS = ['Browse events', 'My registrations'];
   for (const [who, user, tag, links] of [
-    ['student', USERS.student, 'Student · CSE', [...DEPARTMENT_LINKS, 'Membership']],
-    ['faculty', USERS.faculty, 'Faculty · CSE', DEPARTMENT_LINKS],
+    [
+      'student',
+      USERS.student,
+      'Student · CSE',
+      [...DEPARTMENT_LINKS, 'Membership', ...ATTENDEE_EVENT_LINKS],
+    ],
+    ['faculty', USERS.faculty, 'Faculty · CSE', [...DEPARTMENT_LINKS, ...ATTENDEE_EVENT_LINKS]],
     [
       'super admin',
       USERS.admin,
       'Super admin',
-      ['Overview', 'Profile', 'All clubs', 'Users', 'Memberships', 'Dept admins'],
+      [
+        'Overview',
+        'Profile',
+        'All clubs',
+        'Browse events',
+        'New event',
+        'Users',
+        'Memberships',
+        'Dept admins',
+      ],
     ],
   ] as const) {
     test(`${who}: overview, navigation and account tag`, async ({ page }) => {

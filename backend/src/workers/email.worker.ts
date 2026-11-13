@@ -29,6 +29,7 @@ export function startEmailWorker(): Worker<EmailJob> {
         case 'event-published':
         case 'event-cancelled':
         case 'event-registered':
+        case 'event-reminder':
           return sendMail(eventTemplate(data));
       }
     },

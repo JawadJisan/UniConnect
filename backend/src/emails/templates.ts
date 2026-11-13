@@ -109,7 +109,7 @@ ${note}`,
 
 type EventJob = Extract<
   EmailJob,
-  { kind: 'event-published' | 'event-cancelled' | 'event-registered' }
+  { kind: 'event-published' | 'event-cancelled' | 'event-registered' | 'event-reminder' }
 >;
 
 /** "Tue, 1 Dec 2026, 4:00 pm" in Asia/Dhaka, the university's time zone. */
@@ -148,9 +148,17 @@ const EVENT_COPY = {
     action: 'View event',
     note: 'You can cancel your registration from the event page before it starts.',
   },
+  'event-reminder': {
+    // PRD §22 email table: "Reminder: {event_title} is tomorrow".
+    subject: (t: string) => `Reminder: ${t} is tomorrow`,
+    heading: 'your event is tomorrow',
+    lead: (j: EventJob) => `"${j.title}" by ${j.clubName} is coming up.`,
+    action: 'View event',
+    note: "Can't make it? Cancel your registration from the event page so someone else can take the seat.",
+  },
 } as const;
 
-/** FR-EVENT-003, -005, -007. Event text is the organizers'; layout() escapes it. */
+/** FR-EVENT-003, -005, -007 and the reminder. Event text is the organizers'; layout() escapes it. */
 export function eventTemplate(job: EventJob): Mail {
   const copy = EVENT_COPY[job.kind];
   const when = formatDhakaDateTime(job.startDate);
