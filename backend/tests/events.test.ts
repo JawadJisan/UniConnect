@@ -317,4 +317,10 @@ describe('event emails', () => {
     expect(eventTemplate({ ...job, kind: 'event-cancelled' }).subject).toMatch(/^Cancelled/);
     expect(eventTemplate({ ...job, kind: 'event-registered' }).subject).toMatch(/registered/);
   });
+
+  it('uses the PRD §22 reminder subject', () => {
+    const mail = eventTemplate({ ...job, kind: 'event-reminder' });
+    expect(mail.subject).toBe('Reminder: <b>Hack</b> night is tomorrow');
+    expect(mail.text).toContain('Cancel your registration');
+  });
 });

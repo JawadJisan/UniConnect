@@ -10,9 +10,15 @@ import { createRedis } from '../lib/redis.js';
 export const EVENT_QUEUE = 'events';
 export const NOTIFY_EVENT_JOB = 'notify-event';
 
+/** Repeatable jobs on the same queue (PRD §11). */
+export const EVENT_JOBS = {
+  /** Daily 18:00 Asia/Dhaka: remind registrants of events starting in the next 24 hours. */
+  REMINDERS: 'event-reminders',
+} as const;
+
 export interface NotifyEventJob {
   eventId: number;
-  kind: 'published' | 'cancelled';
+  kind: 'published' | 'cancelled' | 'reminder';
   /** The last user id handled. Saved after each page, so a retry resumes after it. */
   cursor?: string | null;
 }
@@ -53,6 +59,19 @@ export async function queueEventNotification(
     // eslint-disable-next-line preserve-caught-error -- the cause can hold the Redis password
     throw new Error(`event queue unavailable: ${(err as Error).message}`);
   }
+}
+
+/**
+ * Registers the daily reminder run. 18:00 Dhaka, so the `(now, now + 24h]` windows of
+ * consecutive runs don't overlap and nearly every event in one starts "tomorrow" (DECISIONS
+ * D36). Upserting is idempotent.
+ */
+export async function scheduleEventJobs(): Promise<void> {
+  await getQueue().upsertJobScheduler(
+    EVENT_JOBS.REMINDERS,
+    { pattern: '0 18 * * *', tz: 'Asia/Dhaka' },
+    { name: EVENT_JOBS.REMINDERS },
+  );
 }
 
 export async function closeEventQueue(): Promise<void> {

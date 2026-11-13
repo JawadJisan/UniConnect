@@ -2,13 +2,24 @@ import { Worker } from 'bullmq';
 import { logger } from '../lib/logger.js';
 import { createRedis } from '../lib/redis.js';
 import { fanOutEventEmails } from '../modules/events/event.notify.js';
-import { EVENT_QUEUE, NOTIFY_EVENT_JOB, type NotifyEventJob } from '../queues/event.queue.js';
+import { eventService } from '../modules/events/event.service.js';
+import {
+  EVENT_JOBS,
+  EVENT_QUEUE,
+  NOTIFY_EVENT_JOB,
+  type NotifyEventJob,
+} from '../queues/event.queue.js';
 
-/** Runs the event email fan-out on its own Redis connection, as BullMQ requires. */
+/** Runs the event email fan-out and the daily reminder run on its own Redis connection. */
 export function startEventWorker(): Worker<NotifyEventJob> {
   const worker = new Worker<NotifyEventJob>(
     EVENT_QUEUE,
     async (job) => {
+      if (job.name === EVENT_JOBS.REMINDERS) {
+        const events = await eventService.sendReminders();
+        logger.info(`events: reminders queued for ${events} events`);
+        return;
+      }
       if (job.name !== NOTIFY_EVENT_JOB) {
         logger.warn(`event worker: unknown job ${job.name}`);
         return;
