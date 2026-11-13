@@ -6,6 +6,7 @@ import {
   IdCardIcon,
   LayoutDashboardIcon,
   LayoutGridIcon,
+  MegaphoneIcon,
   ReceiptTextIcon,
   ShieldCheckIcon,
   TicketIcon,
@@ -48,6 +49,7 @@ export const DEPT_ADMINS_HREF = '/dashboard/admin/dept-admins';
 export const EVENTS_HREF = '/dashboard/events';
 export const MY_REGISTRATIONS_HREF = '/dashboard/events/my-registrations';
 export const NEW_EVENT_HREF = '/dashboard/events/new';
+export const ANNOUNCEMENTS_HREF = '/dashboard/announcements';
 
 /** Roles that belong to a department, and so have a club of their own. */
 const DEPARTMENT_ROLES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
@@ -88,6 +90,10 @@ export const NAV: NavGroup[] = [
       },
       { label: 'New event', href: NEW_EVENT_HREF, Icon: CalendarPlusIcon, roles: ORGANIZER_ROLES },
     ],
+  },
+  {
+    label: 'Updates',
+    items: [{ label: 'Announcements', href: ANNOUNCEMENTS_HREF, Icon: MegaphoneIcon }],
   },
   {
     label: 'Admin',
@@ -169,7 +175,7 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
   ],
   faculty: [
-    { text: "View your department's club and its announcements", href: MY_CLUB_HREF },
+    { text: "View your department's club and its announcements", href: ANNOUNCEMENTS_HREF },
     { text: 'Browse events and register', href: EVENTS_HREF },
     { text: 'Record your blood donations and answer blood requests' },
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
@@ -177,7 +183,7 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
   moderator: [
     { text: "Create, publish and cancel your club's events", href: NEW_EVENT_HREF },
     { text: 'Check attendees in and export registrations', href: EVENTS_HREF },
-    { text: 'Post announcements to your club' },
+    { text: 'Post announcements to your club', href: ANNOUNCEMENTS_HREF },
     { text: 'Everything your student or faculty account already allows' },
   ],
   dept_admin: [
@@ -185,12 +191,14 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     { text: "See and cancel your department's club memberships", href: ADMIN_MEMBERSHIPS_HREF },
     { text: 'Assign committee members', href: MY_CLUB_HREF },
     { text: 'Verify blood donations in your department' },
-    { text: 'Manage department events and post department announcements', href: EVENTS_HREF },
+    { text: 'Manage department events', href: EVENTS_HREF },
+    { text: 'Post and pin department announcements', href: ANNOUNCEMENTS_HREF },
   ],
   super_admin: [
     { text: 'Manage every user: suspend, activate and repair roles', href: ADMIN_USERS_HREF },
     { text: 'See club memberships and payments across departments', href: ADMIN_MEMBERSHIPS_HREF },
     { text: 'Assign department admin terms', href: DEPT_ADMINS_HREF },
+    { text: 'Post and pin announcements for any department or club', href: ANNOUNCEMENTS_HREF },
     { text: 'Verify blood donations in any department' },
     { text: 'Read the audit log' },
   ],
