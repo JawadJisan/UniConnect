@@ -86,6 +86,16 @@ export const AUDIT_ACTIONS = {
   EVENT_COMPLETED: 'EVENT_COMPLETED',
   /** An organizer checked a registrant in (FR-EVENT-010). */
   EVENT_CHECK_IN: 'EVENT_CHECK_IN',
+  /** An announcement was posted (PRD FR-ANNOUNCE-001; DECISIONS D38). */
+  ANNOUNCEMENT_CREATED: 'ANNOUNCEMENT_CREATED',
+  /** Its title or content changed (FR-ANNOUNCE-003); changed fields only. */
+  ANNOUNCEMENT_UPDATED: 'ANNOUNCEMENT_UPDATED',
+  /** It was deleted; `old_value` keeps a snapshot (FR-ANNOUNCE-003). */
+  ANNOUNCEMENT_DELETED: 'ANNOUNCEMENT_DELETED',
+  /** is_pinned false → true (FR-ANNOUNCE-004). */
+  ANNOUNCEMENT_PINNED: 'ANNOUNCEMENT_PINNED',
+  /** is_pinned true → false (FR-ANNOUNCE-004). */
+  ANNOUNCEMENT_UNPINNED: 'ANNOUNCEMENT_UNPINNED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

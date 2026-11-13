@@ -10,3 +10,4 @@ export * from './schemas/membership.js';
 export * from './schemas/committee.js';
 export * from './schemas/dept-admin-term.js';
 export * from './schemas/event.js';
+export * from './schemas/announcement.js';

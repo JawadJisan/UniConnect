@@ -8,6 +8,7 @@ import { prisma } from './lib/prisma.js';
 import { redis } from './lib/redis.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { adminUserRouter } from './modules/admin-users/admin-user.routes.js';
+import { announcementRouter } from './modules/announcements/announcement.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { clubRouter } from './modules/clubs/club.routes.js';
 import { departmentRouter } from './modules/departments/department.routes.js';
@@ -42,6 +43,7 @@ app.use('/api/v1/memberships', membershipRouter);
 app.use('/api/v1/admin/memberships', adminMembershipRouter);
 app.use('/api/v1/admin/dept-admin-terms', deptAdminTermRouter);
 app.use('/api/v1/events', eventRouter);
+app.use('/api/v1/announcements', announcementRouter);
 
 // Liveness: the process is up. Touches no external service.
 app.get('/api/v1/health', (_req, res) => {

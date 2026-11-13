@@ -36,6 +36,10 @@ const NO_ROW = 999999;
 const ORGANIZERS: readonly Role[] = ['moderator', 'dept_admin', 'super_admin'];
 /** Everyone but super_admin registers for events (FR-EVENT-007). */
 const ATTENDEES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
+/** Announcement posters (D38); which club or department they may use is checked by the service. */
+const POSTERS: readonly Role[] = ['moderator', 'dept_admin', 'super_admin'];
+/** Pinning is for dept_admin and super_admin (FR-ANNOUNCE-004). */
+const PINNERS: readonly Role[] = ['dept_admin', 'super_admin'];
 let cseClub = 0;
 
 interface Policy {
@@ -124,6 +128,17 @@ const POLICY: Policy[] = [
     path: `/api/v1/events/${NO_ROW}/registrations/${NO_ROW}/check-in`,
     allowed: ORGANIZERS,
   },
+  // An empty body is a 400 and a missing id a 404 once authorization passes.
+  { method: 'post', path: '/api/v1/announcements', allowed: POSTERS, body: {} },
+  { method: 'get', path: '/api/v1/announcements', allowed: ALL },
+  {
+    method: 'patch',
+    path: `/api/v1/announcements/${NO_ROW}`,
+    allowed: POSTERS,
+    body: { title: 'x' },
+  },
+  { method: 'delete', path: `/api/v1/announcements/${NO_ROW}`, allowed: POSTERS },
+  { method: 'patch', path: `/api/v1/announcements/${NO_ROW}/pin`, allowed: PINNERS },
 ];
 
 const ACCOUNTS: Record<Role, { userType: 'student' | 'faculty' | 'super_admin' }> = {

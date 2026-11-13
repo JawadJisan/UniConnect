@@ -8,6 +8,7 @@ const hrefs = (groups: NavGroup[]) => groups.flatMap((g) => g.items.map((i) => i
 const BASE = ['/dashboard', '/dashboard/profile', '/dashboard/clubs/my-club', '/dashboard/clubs'];
 const EVENTS = ['/dashboard/events', '/dashboard/events/my-registrations'];
 const NEW_EVENT = '/dashboard/events/new';
+const ANNOUNCEMENTS = '/dashboard/announcements';
 
 describe('workspace navigation', () => {
   it('gives a student Membership, by account type (PRD §5), and the attendee event pages', () => {
@@ -15,6 +16,7 @@ describe('workspace navigation', () => {
       ...BASE,
       '/dashboard/memberships',
       ...EVENTS,
+      ANNOUNCEMENTS,
     ]);
   });
 
@@ -24,6 +26,7 @@ describe('workspace navigation', () => {
       '/dashboard/memberships',
       ...EVENTS,
       NEW_EVENT,
+      ANNOUNCEMENTS,
     ]);
   });
 
@@ -31,6 +34,7 @@ describe('workspace navigation', () => {
     expect(hrefs(visibleNav({ role: 'faculty', userType: 'faculty' }))).toEqual([
       ...BASE,
       ...EVENTS,
+      ANNOUNCEMENTS,
     ]);
   });
 
@@ -39,6 +43,7 @@ describe('workspace navigation', () => {
       ...BASE,
       ...EVENTS,
       NEW_EVENT,
+      ANNOUNCEMENTS,
     ]);
   });
 
@@ -47,19 +52,27 @@ describe('workspace navigation', () => {
       ...BASE,
       ...EVENTS,
       NEW_EVENT,
+      ANNOUNCEMENTS,
       '/dashboard/admin/memberships',
     ]);
   });
 
   it('gives super admins All clubs, events without My registrations, and the Admin group', () => {
     const viewer = { role: 'super_admin', userType: 'super_admin' } as const;
-    expect(visibleNav(viewer).map((g) => g.label)).toEqual(['You', 'Clubs', 'Events', 'Admin']);
+    expect(visibleNav(viewer).map((g) => g.label)).toEqual([
+      'You',
+      'Clubs',
+      'Events',
+      'Updates',
+      'Admin',
+    ]);
     expect(hrefs(visibleNav(viewer))).toEqual([
       '/dashboard',
       '/dashboard/profile',
       '/dashboard/clubs',
       '/dashboard/events',
       NEW_EVENT,
+      ANNOUNCEMENTS,
       '/dashboard/admin/users',
       '/dashboard/admin/memberships',
       '/dashboard/admin/dept-admins',
