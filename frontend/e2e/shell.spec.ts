@@ -7,7 +7,8 @@ import { expectNoHorizontalScroll, logIn } from './helpers';
 test.describe('workspace shell', () => {
   // The sidebar comes from one table (nav.ts): everyone with a department gets "My club",
   // students get "Membership" (by account type), everyone browses events, everyone but the
-  // super admin registers, organizers create events, and only admins get the Admin group.
+  // super admin registers, organizers create events, everyone reads announcements, and only
+  // admins get the Admin group.
   const DEPARTMENT_LINKS = ['Overview', 'Profile', 'My club', 'All clubs'];
   const ATTENDEE_EVENT_LINKS = ['Browse events', 'My registrations'];
   for (const [who, user, tag, links] of [
@@ -15,9 +16,14 @@ test.describe('workspace shell', () => {
       'student',
       USERS.student,
       'Student · CSE',
-      [...DEPARTMENT_LINKS, 'Membership', ...ATTENDEE_EVENT_LINKS],
+      [...DEPARTMENT_LINKS, 'Membership', ...ATTENDEE_EVENT_LINKS, 'Announcements'],
     ],
-    ['faculty', USERS.faculty, 'Faculty · CSE', [...DEPARTMENT_LINKS, ...ATTENDEE_EVENT_LINKS]],
+    [
+      'faculty',
+      USERS.faculty,
+      'Faculty · CSE',
+      [...DEPARTMENT_LINKS, ...ATTENDEE_EVENT_LINKS, 'Announcements'],
+    ],
     [
       'super admin',
       USERS.admin,
@@ -28,6 +34,7 @@ test.describe('workspace shell', () => {
         'All clubs',
         'Browse events',
         'New event',
+        'Announcements',
         'Users',
         'Memberships',
         'Dept admins',
