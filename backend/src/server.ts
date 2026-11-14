@@ -2,6 +2,7 @@ import { app } from './app.js';
 import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { prisma } from './lib/prisma.js';
+import { closeQueueHealth } from './lib/queue-health.js';
 import { redis } from './lib/redis.js';
 import { closeBloodQueue, scheduleBloodJobs } from './queues/blood.queue.js';
 import { closeEmailQueue } from './queues/email.queue.js';
@@ -55,6 +56,7 @@ async function shutdown(signal: string) {
     closeTermQueue(),
     closeEventQueue(),
     closeBloodQueue(),
+    closeQueueHealth(),
   ]);
   await Promise.allSettled([prisma.$disconnect(), redis.quit()]);
   process.exit(0);
