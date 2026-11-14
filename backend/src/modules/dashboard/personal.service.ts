@@ -7,6 +7,7 @@ import {
   type PersonalDashboard,
 } from '@uniconnect/shared';
 import { todayInDhaka } from '../../lib/dates.js';
+import { aiConfigured } from '../../lib/gemini.js';
 import { announcementService } from '../announcements/announcement.service.js';
 import { requestService } from '../blood/request.service.js';
 import { eventService } from '../events/event.service.js';
@@ -16,9 +17,6 @@ import { daysBetween, type DashboardCaller } from './dashboard.caller.js';
 // FR-DASH-001, the personal view (D13 resolved 2026-11-14: every student and faculty account,
 // whatever its role). Each list comes from its module's own service, so the visibility rules
 // (D36 events, D15 announcements) have one source.
-
-/** Phase 9 (chatbot) isn't built; turn this on with it. */
-export const CHATBOT_ENABLED = false;
 
 const LATEST = 5;
 
@@ -37,7 +35,8 @@ export const personalService = {
       membership,
       announcements: announcements.data,
       blood_requests: blood,
-      chatbot: { enabled: CHATBOT_ENABLED },
+      // On when Gemini is configured (D44); the assistant answers 503 otherwise.
+      chatbot: { enabled: aiConfigured() },
     };
   },
 };

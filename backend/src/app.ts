@@ -9,7 +9,9 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { adminUserRouter } from './modules/admin-users/admin-user.routes.js';
 import { announcementRouter } from './modules/announcements/announcement.routes.js';
 import { auditLogRouter } from './modules/audit-logs/audit-log.routes.js';
+import { aiRouter } from './modules/ai/ai.routes.js';
 import { adminBloodRouter, bloodRouter } from './modules/blood/blood.routes.js';
+import { adminChatbotRouter, chatbotRouter } from './modules/chatbot/chatbot.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { clubRouter } from './modules/clubs/club.routes.js';
@@ -50,6 +52,9 @@ app.use('/api/v1/blood', bloodRouter);
 app.use('/api/v1/admin/blood', adminBloodRouter);
 app.use('/api/v1/admin/audit-logs', auditLogRouter);
 app.use('/api/v1/dashboard', dashboardRouter);
+app.use('/api/v1/chatbot', chatbotRouter);
+app.use('/api/v1/admin/chatbot', adminChatbotRouter);
+app.use('/api/v1/ai', aiRouter);
 
 // Liveness: the process is up. Touches no external service.
 app.get('/api/v1/health', (_req, res) => {

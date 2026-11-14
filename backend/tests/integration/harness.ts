@@ -10,6 +10,8 @@ import type { EmailJob } from '../../src/queues/email.queue.js';
 interface Counter {
   count: number;
   expiresAt: number;
+  /** The stored string, for keys written by SET (the chatbot cache). */
+  value?: string;
 }
 
 /** In-memory stand-in for the shared ioredis client: enough for `consume()` and `ping()`. */
@@ -46,14 +48,23 @@ export class FakeRedis {
     return [entry.count, Math.ceil((entry.expiresAt - now) / 1000)];
   }
 
-  /** `SET key value EX seconds NX`, as the event reminder marker uses it. */
-  async set(key: string, _value: string, _ex: 'EX', seconds: number) {
+  /**
+   * `SET key value EX seconds [NX]`: the event reminder marker uses NX, the chatbot cache
+   * (DECISIONS D44) doesn't.
+   */
+  async set(key: string, value: string, _ex: 'EX', seconds: number, nx?: 'NX') {
     await this.alive();
     const now = Date.now();
     const entry = this.store.get(key);
-    if (entry && entry.expiresAt > now) return null;
-    this.store.set(key, { count: 1, expiresAt: now + seconds * 1000 });
+    if (nx && entry && entry.expiresAt > now) return null;
+    this.store.set(key, { count: 1, expiresAt: now + seconds * 1000, value });
     return 'OK';
+  }
+
+  async get(key: string) {
+    await this.alive();
+    const entry = this.store.get(key);
+    return entry && entry.expiresAt > Date.now() ? (entry.value ?? null) : null;
   }
 
   async del(key: string) {
@@ -79,7 +90,7 @@ export const eventJobs: { eventId: number; kind: EventJobKind }[] = [];
  * keep Jest from exiting, so the harness stands in for it (DECISIONS D42).
  */
 export const queueHealthState = { down: false };
-const QUEUE_NAMES = ['email', 'memberships', 'terms', 'events', 'blood'] as const;
+const QUEUE_NAMES = ['email', 'memberships', 'terms', 'events', 'blood', 'chatbot'] as const;
 
 jest.unstable_mockModule('../../src/lib/redis.js', () => ({
   redis: fakeRedis,
@@ -102,6 +113,31 @@ jest.unstable_mockModule('../../src/queues/event.queue.js', () => ({
   },
   scheduleEventJobs: async () => {},
   closeEventQueue: async () => {},
+}));
+/**
+ * Gemini stand-in (DECISIONS D44). Every call is recorded, so tests can read the exact context
+ * a user's question was answered from. `configured` false makes the AI routes answer 503;
+ * `fail` makes the call throw; `reply` sets the answer text.
+ */
+export const gemini = {
+  configured: true,
+  fail: false,
+  reply: 'Here is what I found.',
+  calls: [] as { system: string; prompt: string }[],
+};
+jest.unstable_mockModule('../../src/lib/gemini.js', () => ({
+  aiConfigured: () => gemini.configured,
+  generateText: async (input: { system: string; prompt: string }) => {
+    gemini.calls.push({ system: input.system, prompt: input.prompt });
+    if (gemini.fail) throw new Error('gemini: down');
+    return gemini.reply;
+  },
+}));
+jest.unstable_mockModule('../../src/queues/chatbot.queue.js', () => ({
+  CHATBOT_QUEUE: 'chatbot',
+  CHATBOT_JOBS: { PURGE_LOGS: 'purge-chat-logs' },
+  scheduleChatbotJobs: async () => {},
+  closeChatbotQueue: async () => {},
 }));
 jest.unstable_mockModule('../../src/lib/queue-health.js', () => ({
   QUEUE_NAMES,
@@ -136,13 +172,17 @@ export const PASSWORD = 'Str0ng!pass';
 /** Empties every user-owned table. Departments (seeded) stay. */
 export async function resetDatabase({ prisma }: Harness) {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE users, accounts, sessions, verifications, audit_logs RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE users, accounts, sessions, verifications, audit_logs, chat_logs RESTART IDENTITY CASCADE',
   );
   fakeRedis.reset();
   sentEmails.length = 0;
   eventJobs.length = 0;
   emailQueue.down = false;
   queueHealthState.down = false;
+  gemini.configured = true;
+  gemini.fail = false;
+  gemini.reply = 'Here is what I found.';
+  gemini.calls.length = 0;
 }
 
 /** The V1 departments, as prisma/seed.ts writes them. Upserted so tests need no seed run. */

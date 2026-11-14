@@ -1,4 +1,4 @@
-import type { Prisma } from '../../generated/prisma/client.js';
+import { Prisma } from '../../generated/prisma/client.js';
 import type { Db } from '../../repositories/audit.repository.js';
 
 /** The columns of a club summary. An allowlist: nothing else reaches the response. */
@@ -42,6 +42,20 @@ export interface ClubUpdateData {
   membershipFeeYearly?: string | null;
 }
 
+/** One club as the chatbot's retrieval reads it (DECISIONS D44). Fees are public. */
+export interface ClubHit {
+  id: number;
+  name: string;
+  description: string | null;
+  department_name: string;
+  fee_monthly: string | null;
+  fee_yearly: string | null;
+  rank: number;
+}
+
+/** The exact clubs_fts expression, or the GIN index is skipped. */
+const CLUB_FTS = Prisma.sql`to_tsvector('simple', c.name || ' ' || coalesce(c.description, ''))`;
+
 export const clubRepository = {
   async list(db: Db, page: number, limit: number) {
     const [rows, total] = await Promise.all([
@@ -83,5 +97,17 @@ export const clubRepository = {
 
   update(db: Db, id: number, data: ClubUpdateData) {
     return db.club.update({ where: { id }, data, select: CLUB_SELECT });
+  },
+
+  /** Chatbot retrieval (FR-AI-001). Every role lists every club (FR-CLUB-004): no scope. */
+  search(db: Db, tsquery: string, limit: number) {
+    return db.$queryRaw<ClubHit[]>`
+      SELECT c.id, c.name, c.description, d.name AS department_name,
+        c.membership_fee_monthly::text AS fee_monthly, c.membership_fee_yearly::text AS fee_yearly,
+        ts_rank(${CLUB_FTS}, to_tsquery('simple', ${tsquery}))::float8 AS rank
+      FROM clubs c JOIN departments d ON d.id = c.department_id
+      WHERE ${CLUB_FTS} @@ to_tsquery('simple', ${tsquery})
+      ORDER BY rank DESC, c.id ASC
+      LIMIT ${limit}`;
   },
 };
