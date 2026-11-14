@@ -4,49 +4,57 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Phase 8, dashboards and the audit log viewer, on `feat/dashboards`.
+Phase 8, dashboards and the audit log viewer, on `feat/dashboards`. Both parts are done.
 
-- **Part 1, the backend (D13, D42):** done, verified and committed this session.
-- **Part 2, the frontend:** plan approved by the user 2026-11-14. Next.
+- **Part 1, the backend (D13, D42):** committed this session in four commits (`869a507`..`210d55f`). That commit's handoff, in git history, has the details: the integration hang fix and the personal view's "upcoming" bug.
+- **Part 2, the frontend (D43):** built this session from the plan the user approved on 2026-11-14. **Not committed yet.**
 
-## Completed work (Part 1)
+## Completed work (Part 2)
 
-- **Shared:** `schemas/dashboard.ts` (`PersonalDashboard`, `ModeratorDashboard`, `DeptAdminDashboard`, `SuperAdminDashboard`, `QueueHealth`), `schemas/audit.ts` (`auditLogQuerySchema`, `AuditLogEntry`).
-- **Backend:**
-  - `src/modules/dashboard/`: `/student` (personal view for every student and faculty account), `/moderator`, `/dept-admin`, `/super-admin`.
-  - `src/modules/audit-logs/`: `GET /api/v1/admin/audit-logs` (filters, Dhaka days, D9 paging).
-  - `src/lib/health.ts` (`checkHealth`, shared with `/health/ready`), `src/lib/queue-health.ts` (per queue BullMQ counts, 3 s timeout, closed by `server.ts`).
-- **Hang fix:** the integration harness built real BullMQ queues on `FakeRedis`. Their counts never settled and their handles kept Jest from exiting. The harness now mocks `src/lib/queue-health.js` (`queueHealthState.down` simulates an outage). The real module has its own unit test, `tests/queue-health.test.ts`, with a mocked `Queue`.
-- **Bug fixed:** the personal dashboard listed past and completed events as upcoming. `personal.service.ts` called the events list without a status, assuming it defaulted to `upcoming`; it applies no status filter. It now passes `status: 'upcoming'`.
-- **Tests:** `tests/dashboard.test.ts`, `tests/queue-health.test.ts`, `tests/integration/dashboard.int.test.ts` (plus a Redis outage case), RBAC matrix rows for the five routes.
-- **Docs:** D42 (with a note on how queue health is faked in tests), `TASKS.md`, `CLAUDE.md`.
+- **Data:**
+  - `hooks/use-dashboard.ts`: one query per view. The moderator's 404 `NO_COMMITTEE_SEAT` comes back as `{ kind: 'no_seat' }`. The super admin view refetches every 60 s.
+  - `hooks/use-audit-logs.ts`
+  - `lib/dashboard.ts`: section order, chart rows, tones.
+  - `lib/audit.ts`: URL params, action groups, `jsonDiff`.
+- **Overview `/dashboard`** (`dashboard/_components/`):
+  - `overview-view.tsx` stacks the sections: role view first, then personal for student and faculty accounts; a super admin gets only the system view.
+  - Sections: `personal-section.tsx`, `moderator-section.tsx`, `dept-admin-section.tsx`, `super-admin-section.tsx`.
+  - Pieces: `stat-tile.tsx`, `section-state.tsx`, `bar-chart.tsx` (Recharts, one hue, `sr-only` table), `health-strip.tsx`, `committee-list.tsx`, `status-counts.tsx`.
+  - The profile checklist now shows only while incomplete. The "What you can do" panel, `ROLE_CAPABILITIES` and the Account panel are removed.
+- **Audit log `/dashboard/admin/audit-logs`:** `audit-logs-view.tsx`, `audit-diff-dialog.tsx`, and shared cells in `app/(app)/_components/audit-cells.tsx`.
+  - Filters live in the URL.
+  - Clicking an actor's name filters to that person, in place of a person picker.
+  - The two dates are kept in local state and written to the URL together. The first E2E run showed that a quick second date edit could drop the first, and a regression test now covers it.
+- **Nav:** "Audit logs" under Admin, super admin only. The old `U+FFFD` text went with `ROLE_CAPABILITIES`.
+- **Tests:**
+  - New: `tests/lib/dashboard.test.ts`, `tests/lib/audit.test.ts`, `tests/app/dashboard.test.tsx` (12), `tests/app/audit-logs.test.tsx` (10), `e2e/dashboard.spec.ts` (2).
+  - Updated: `nav.test.ts`, `admin-users.test.tsx` (the overview link check moved to `dashboard.test.tsx`), `e2e/shell.spec.ts`.
+- **Docs:** `DESIGN.md` §7 (Overview, Stat tile, Chart, Health strip, Audit log, Audit diff) and §11, `DECISIONS.md` D43, `TASKS.md` (Phase 8 Done), `CLAUDE.md`.
 
-## Commands executed and results (Part 1)
+## Commands executed and results (Part 2)
 
-| Command                                                                      | Result                                                                                                                                     |
-| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm --filter @uniconnect/backend test tests/queue-health.test.ts`          | 7/7                                                                                                                                        |
-| `pnpm --filter @uniconnect/backend test`                                     | **353/353** (18 suites)                                                                                                                    |
-| `pnpm --filter @uniconnect/backend test:integration` dashboard + rbac-matrix | No hang: Jest exited in 436 s. RBAC passed. Dashboard 2 failed: completed event #4 listed as upcoming in the personal view (the bug above) |
-| Same, dashboard suite only, after the fix                                    | **14/14**, exit 0                                                                                                                          |
-| `pnpm typecheck`, `pnpm lint`                                                | pass                                                                                                                                       |
-| `pnpm format:check`                                                          | First run flagged `DECISIONS.md` and `TASKS.md` (table padding). Formatted, then pass                                                      |
+| Command                                                             | Result                                                                                                                                                                  |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @uniconnect/frontend typecheck`                      | First: a Recharts tooltip generic and a lost narrowing. Fixed, then pass                                                                                                |
+| `pnpm --filter @uniconnect/frontend test` lib tests + `nav.test.ts` | 53/53                                                                                                                                                                   |
+| `tests/app/dashboard.test.tsx`                                      | First 11/12: the test read the super admin section while it was still loading. Now it waits, 12/12. Recharts warns about a 0×0 container in jsdom (no layout); harmless |
+| `tests/app/audit-logs.test.tsx`                                     | First 9/10 (my guessed text for the arrow), then 10/10; again 10/10 after the date fix and its new assertion                                                            |
+| `pnpm --filter @uniconnect/frontend test --maxWorkers=2`            | **416/416** (32 suites), before the date fix                                                                                                                            |
+| `pnpm --filter @uniconnect/frontend build`                          | pass (the earlier Suspense failure is gone)                                                                                                                             |
+| `pnpm e2e dashboard.spec.ts shell.spec.ts`                          | shell 5/5, dashboard 1/2: `getByLabel('To')` was ambiguous, then the date race above                                                                                    |
+| `pnpm e2e dashboard.spec.ts` after both fixes                       | **2/2**                                                                                                                                                                 |
+| `pnpm typecheck`, `pnpm lint`                                       | pass                                                                                                                                                                    |
 
 ## Not covered
 
-- **Full integration suite:** only the dashboard and RBAC matrix suites ran. The fix touches only the dashboard module.
-- **Queue health against real Redis:** covered only by the mocked `Queue` unit test and the harness stand in.
-- **Earlier open items:** the full E2E suite and the `U+FFFD` characters in `nav.ts` (to fix in Part 2).
+- **Moderator and dept admin overviews end to end:** the E2E seed has no moderator or dept admin. Covered by `dashboard.test.tsx` against mocked API answers.
+- **The charts' look in a browser:** jsdom has no layout. The super admin E2E loads the page but doesn't check the bars. Worth a manual look in `pnpm dev`.
+- **Full E2E suite:** only the dashboard and shell specs ran.
 
 ## Exact next task
 
-Phase 8 Part 2, the frontend, per the approved plan:
-
-- The `/dashboard` overview becomes role sections: personal for student and faculty; moderator plus personal; dept admin plus personal; super admin only.
-- `/dashboard/admin/audit-logs` for super admins, with filters kept in the URL and a diff dialog.
-- An "Audit logs" nav item.
-- Tests, E2E, and D43.
+When the user asks: commit Part 2 on `feat/dashboards` (frontend, tests, docs), then merge into `development`. After that, Phase 9 (chatbot).
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, this file and D42 in `docs/DECISIONS.md`, then build the Phase 8 frontend from the approved plan, starting with `hooks/use-dashboard.ts` and `lib/dashboard.ts`.
+> Read `CLAUDE.md`, this file and D43 in `docs/DECISIONS.md`. Review `git diff` on `feat/dashboards`, then commit Phase 8 Part 2 when asked.
