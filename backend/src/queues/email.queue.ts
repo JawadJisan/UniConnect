@@ -48,6 +48,20 @@ export type EmailJob =
       startDate: string;
       venue: string | null;
       url: string;
+    }
+  | {
+      /**
+       * Someone marked the reader's blood request fulfilled (PRD FR-BLOOD-007; DECISIONS D40).
+       * Carries the fulfiller's name only, never their contact details.
+       */
+      kind: 'blood-request-fulfilled';
+      to: string;
+      name: string;
+      patientName: string;
+      bloodGroup: string;
+      hospitalName: string;
+      fulfillerName: string;
+      url: string;
     };
 
 let queue: Queue<EmailJob> | undefined;

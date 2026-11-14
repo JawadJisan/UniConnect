@@ -18,3 +18,12 @@ export function violatedIndex<T extends string>(
   const haystack = `${JSON.stringify(err.meta ?? {})} ${err.message}`;
   return indexNames.find((name) => haystack.includes(name)) ?? null;
 }
+
+/** A lock_timeout cancel (55P03) or Prisma's transaction timeout (P2028). */
+export function isLockWait(err: unknown): boolean {
+  const e = err as { code?: string; meta?: unknown; message?: string } | null;
+  if (!e) return false;
+  if (e.code === 'P2028') return true;
+  const text = `${e.code ?? ''} ${JSON.stringify(e.meta ?? {})} ${e.message ?? ''}`;
+  return text.includes('55P03') || /lock timeout/i.test(text);
+}

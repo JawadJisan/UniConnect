@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 import {
+  bloodRequestFulfilledTemplate,
   deptAdminAssignedTemplate,
   eventTemplate,
   membershipReceiptTemplate,
@@ -31,6 +32,8 @@ export function startEmailWorker(): Worker<EmailJob> {
         case 'event-registered':
         case 'event-reminder':
           return sendMail(eventTemplate(data));
+        case 'blood-request-fulfilled':
+          return sendMail(bloodRequestFulfilledTemplate(data));
       }
     },
     { connection: createRedis(), concurrency: 5 },
