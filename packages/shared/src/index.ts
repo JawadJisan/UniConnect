@@ -12,3 +12,5 @@ export * from './schemas/dept-admin-term.js';
 export * from './schemas/event.js';
 export * from './schemas/announcement.js';
 export * from './schemas/blood.js';
+export * from './schemas/audit.js';
+export * from './schemas/dashboard.js';
