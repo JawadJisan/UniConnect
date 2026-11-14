@@ -4,67 +4,65 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Phase 9, the AI chatbot, Part 1 (backend), on `feat/chatbot` cut from `development`. Built and verified this session; **not committed**.
+Phase 9, the AI chatbot, Part 2 (frontend, FR-AI-001–003), on `feat/chatbot-frontend` cut from `development` (`ace744d`, which has Part 1 merged). Built and verified this session; **not committed**.
 
-Earlier this session: Phase 8 (dashboards and the audit log viewer) was finished, committed and merged into `development` as `46c1d60` (not pushed). Local `development` is ahead of `origin/development`.
+The user approved the plan with four defaults, each recorded in D45 and still changeable:
 
-The user approved the plan with "yes go ahead", without answering its seven open questions. Each was built at the recommended default and recorded in D44, so any of them can still be changed:
+- Draft with AI needs a venue, because the API requires it
+- chat history lives in component state only
+- the panel sits below the role and personal views
+- the super admin always sees the panel and falls back on a 503
 
-- published events only
-- 90-day retention
-- 503 when Gemini isn't configured
-- the limiter fails closed
-- the scope-hash cache key
-- the upcoming-events fallback
-- PII-stripped questions in ChatLog
+The user also put a real `GEMINI_API_KEY` and `GEMINI_MODEL` in `backend/.env` and asked for a test against it.
 
 ## Completed work
 
-- **Config:** `GEMINI_API_KEY` and `GEMINI_MODEL` in `env.ts`, required in production; a comment in `.env.example`. Suggested model: `gemini-3.8-flash`, from Google's model page on 2026-11-14 (DECISIONS §2 pins).
-- **Gemini:** `src/lib/gemini.ts` (`aiConfigured`, `generateText`, 10 s abort, message-only errors).
-- **Rate limit:**
-  - `src/lib/rate-limit.ts`: `consume` moved out of `auth.ts`, unchanged.
-  - `src/middleware/rate-limit.ts`: `limitPerUser` and `AI_BUCKET` (10 a minute, shared by both AI routes, fails closed).
-- **Retrieval:**
-  - `eventRepository.searchVisible` / `upcomingVisible` (reuse `visibleTo`, published only)
-  - `announcementRepository.searchVisible` (`visibleSql` mirrors `whereVisible`)
-  - `clubRepository.search`
-- **`src/modules/chatbot/`:**
-  - `chatbot.prompt.ts`: `toTsQuery`, `stripPii`, prompts.
-  - `chatbot.cache.ts`: scope-hash key, 5-minute TTL, fails open.
-  - `chatbot.retrieval.ts`, `chatbot.service.ts` (ask, logs, `purgeOldLogs`), controller, routes (`chatbotRouter`, `adminChatbotRouter`).
-- **`src/modules/ai/`:** FR-AI-003, the event description draft.
-- **Retention:** queue `chatbot` and `workers/chatbot.worker.ts` (`purge-chat-logs`, 03:30 Dhaka), wired in `server.ts`. The queue was added to `QUEUE_NAMES`, so it appears in the health strip.
-- **Wiring:** `app.ts` mounts `/api/v1/chatbot`, `/api/v1/admin/chatbot` and `/api/v1/ai`. The dashboard's `chatbot.enabled` is now `aiConfigured()`.
-- **Shared:** `schemas/chatbot.ts` (`FALLBACK_ANSWER`, schemas, types).
-- **Tests:**
-  - New: `tests/chatbot.test.ts` (42) and `tests/integration/chatbot.int.test.ts`.
-  - Harness: `FakeRedis` stores `get`/`set` values; mocks for `gemini.js` (records prompts) and `chatbot.queue.js`.
-  - RBAC matrix: three rows.
-  - `dashboard.int.test.ts`: chatbot enabled, six queues.
-- **Docs:** D44, the Gemini pin, issue 15 resolved, PRD #18 marked built as default, `TASKS.md` row 9, `CLAUDE.md`.
+- **Helpers and hooks:**
+  - `src/lib/chatbot.ts`: `toAiError` (keeps a 429's `Retry-After`), `aiErrorMessage`, `sourceHref`/`sourceLabel`, `STARTER_PROMPTS`, `chatLogParamsFromUrl`
+  - `src/hooks/use-chatbot.ts`: `useAskChatbot`, `useChatLogs`, `useGenerateEventDescription`
+- **Assistant (FR-AI-001):** `dashboard/_components/assistant-section.tsx`, mounted in `overview-view.tsx` after the role and personal sections.
+  - Gated by `chatbot.enabled` from the personal view, or by a 503 `AI_NOT_CONFIGURED` for the super admin.
+  - Starter chips, a 500-character counter, Enter to send, and a typing indicator.
+  - Inline 429 countdown, plus Retry on a failed question.
+- **Logs (FR-AI-002):** `dashboard/admin/chatbot-logs/` (page, `chat-logs-view.tsx`, `chat-log-dialog.tsx`), and a "Chatbot logs" nav item (super admin, so also in ⌘K).
+- **Draft with AI (FR-AI-003):** `events/_components/draft-description.tsx`, wired into `event-form.tsx`.
+  - Needs title, club, start and venue.
+  - Asks before replacing text.
+  - Fills the field as a dirty change and saves nothing.
+- **Playwright:** `playwright.config.ts` blanks `GEMINI_API_KEY`/`GEMINI_MODEL` unless `AI_LIVE=1`. Two new specs:
+  - `e2e/ai.spec.ts`: mocked.
+  - `e2e/ai.live.spec.ts`: opt-in, real model.
+- **Unit tests:** `tests/lib/chatbot.test.ts`, `tests/app/assistant.test.tsx` and `tests/app/chat-logs.test.tsx`, plus additions to `event-form.test.tsx` and `nav.test.ts`.
+- **Docs:** D45, the DESIGN.md §7 entries (Assistant panel, Chatbot logs, Draft with AI), §11 `SYS.AI.*`, `TASKS.md` row 9 and `CLAUDE.md`.
 
 ## Commands executed and results
 
-| Command                                                                                | Result                                                                                                                   |
-| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm --filter @uniconnect/backend test tests/chatbot.test.ts`                         | First 41/42: Bangla words were split, because vowel signs are `\p{M}`, not letters. The tokenizer now keeps marks; 42/42 |
-| `pnpm --filter @uniconnect/backend test`                                               | **395/395** (19 suites)                                                                                                  |
-| `pnpm --filter @uniconnect/backend test:integration` chatbot + rbac-matrix + dashboard | **414/414** (3 suites)                                                                                                   |
-| `pnpm typecheck`, `pnpm lint`                                                          | pass                                                                                                                     |
-| `pnpm format:check`                                                                    | First flagged `tests/chatbot.test.ts`; formatted, then pass                                                              |
+| Command                                                                                                                           | Result                                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm typecheck`, `pnpm lint`                                                                                                     | Pass. The first lint run flagged two React Compiler errors in the assistant (a synchronous `setState` in an effect, and `handleSubmit` called during render); both were restructured.                                                                                                                      |
+| `pnpm format:check`                                                                                                               | Pass, after formatting the four edited docs.                                                                                                                                                                                                                                                               |
+| `pnpm --filter @uniconnect/frontend test`                                                                                         | First run: 444/445, with one failure in the untouched audit-log list test. That test passed alone, and the rerun was **445/445** (35 suites).                                                                                                                                                              |
+| `playwright test e2e/ai.spec.ts`                                                                                                  | First run: 2/4. One failure was a route patch still in flight at the end of a test (fixed with `unrouteAll` in `afterEach`); the other was a "Question" label clash with the hidden overview (fixed by using the searchbox role). Rerun: **4/4**.                                                          |
+| `pnpm e2e` (full, Gemini blanked)                                                                                                 | 42 passed, 3 failed, 1 skipped (`ai.live`). Shell failed because it expected the old super admin nav; "Chatbot logs" was added to it. The two admin users tests timed out while `next dev` cold-compiled the route (the screenshot shows "Compiling…"). Rerun of `admin.spec` and `shell.spec`: **10/10**. |
+| `AI_LIVE=1 playwright test e2e/ai.live.spec.ts` (3 runs)                                                                          | **Failed.** The API had the key and model (the dashboard reported the assistant on), but each ask returned 503 `AI_UNAVAILABLE` after 10–15 s.                                                                                                                                                             |
+| Scratch probe of `src/lib/gemini.ts` with the configured model and `gemini-3.8-flash` (a process-only override; `.env` unchanged) | Google returned `503 UNAVAILABLE "This model is currently experiencing high demand"` or didn't answer within 10 s. One raw SDK call with a 40 s timeout got no answer.                                                                                                                                     |
 
 ## Not covered
 
-- **No live Gemini call:** every test mocks `src/lib/gemini.ts`. Not checked yet: the real model ID, latency (PRD target < 3 s) and answer quality. One manual ask with a real key in `backend/.env` against the `development` branch would cover them.
-- **The production env refine** (key and model required) has no test; it follows the existing SMTP and Cloudinary pattern.
-- **Full integration suite:** only the three suites above ran. `auth.ts` changed only by importing `consume` from its new module; the auth integration suites didn't run.
-- **The purge job's BullMQ schedule:** the integration test calls `purgeOldLogs` directly.
+- **A successful live Gemini answer.** See the results above: Google returned 503 "This model is currently experiencing high demand" or didn't answer within 10 s (and once not within 40 s), for both the configured model and `gemini-3.8-flash`. The API and UI handled it correctly (`AI_UNAVAILABLE`, inline message). Still unverified against the real model:
+  - answer quality
+  - latency (PRD target < 3 s)
+  - ChatLog writing
+  - PII stripping
+
+  Rerun when Google has capacity: `AI_LIVE=1 pnpm --filter @uniconnect/frontend exec playwright test e2e/ai.live.spec.ts`. Don't run it at the same time as `test:integration`.
+
+- **The 10 s Gemini abort** (`src/lib/gemini.ts`) may be too tight if the model is slow even when healthy. Decide only after a successful live run.
 
 ## Exact next task
 
-When the user asks: commit Phase 9 Part 1 on `feat/chatbot` (shared, backend, tests, docs). Then Part 2, the chatbot frontend: a chat panel on the overview (shown when `chatbot.enabled`), the super admin chat log viewer, and "Draft with AI" on the event form.
+Rerun the live spec until it passes, and record the latency in D45. Then, when the user asks, commit on `feat/chatbot-frontend` and merge into `development`.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, this file and D44 in `docs/DECISIONS.md`. Review `git diff` on `feat/chatbot`, commit when asked, then plan the chatbot frontend in plan mode.
+> Read `CLAUDE.md`, this file and D45 in `docs/DECISIONS.md`. Run `AI_LIVE=1 pnpm --filter @uniconnect/frontend exec playwright test e2e/ai.live.spec.ts`, report the result, then commit when asked.
