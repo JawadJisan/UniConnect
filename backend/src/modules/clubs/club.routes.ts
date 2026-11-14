@@ -7,6 +7,7 @@ import {
   requireRole,
   type DepartmentResolver,
 } from '../../middleware/auth.js';
+import { mount } from '../../lib/mount.js';
 import { logoUpload } from '../../middleware/upload.js';
 import { validateBody, validateRequest } from '../../middleware/validate.js';
 import { committeeRouter } from '../committee/committee.routes.js';
@@ -39,4 +40,4 @@ clubRouter.get('/my-club', clubController.myClub);
 clubRouter.get('/:id', byId, clubController.detail);
 clubRouter.patch('/:id', ...canEdit, validateBody(updateClubSchema), clubController.update);
 clubRouter.patch('/:id/logo', ...canEdit, logoUpload, clubController.updateLogo);
-clubRouter.use('/:id/committee', committeeRouter);
+mount(clubRouter, '/:id/committee', committeeRouter);

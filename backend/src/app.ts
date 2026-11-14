@@ -4,7 +4,9 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from './config/env.js';
 import { auth } from './lib/auth.js';
+import { docsEnabled, docsRouter } from './docs/docs.routes.js';
 import { checkHealth } from './lib/health.js';
+import { mount } from './lib/mount.js';
 import { clientIp } from './middleware/client-ip.js';
 import {
   authBodyLimit,
@@ -53,23 +55,23 @@ app.all('/api/auth/*splat', toNodeHandler(auth));
 app.use(express.json({ limit: '100kb' }));
 app.use('/api/v1', sameOriginMutations(env.FRONTEND_ORIGIN));
 
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/departments', departmentRouter);
-app.use('/api/v1/users', userRouter);
-app.use('/api/v1/admin/users', adminUserRouter);
-app.use('/api/v1/clubs', clubRouter);
-app.use('/api/v1/memberships', membershipRouter);
-app.use('/api/v1/admin/memberships', adminMembershipRouter);
-app.use('/api/v1/admin/dept-admin-terms', deptAdminTermRouter);
-app.use('/api/v1/events', eventRouter);
-app.use('/api/v1/announcements', announcementRouter);
-app.use('/api/v1/blood', bloodRouter);
-app.use('/api/v1/admin/blood', adminBloodRouter);
-app.use('/api/v1/admin/audit-logs', auditLogRouter);
-app.use('/api/v1/dashboard', dashboardRouter);
-app.use('/api/v1/chatbot', chatbotRouter);
-app.use('/api/v1/admin/chatbot', adminChatbotRouter);
-app.use('/api/v1/ai', aiRouter);
+mount(app, '/api/v1/auth', authRouter);
+mount(app, '/api/v1/departments', departmentRouter);
+mount(app, '/api/v1/users', userRouter);
+mount(app, '/api/v1/admin/users', adminUserRouter);
+mount(app, '/api/v1/clubs', clubRouter);
+mount(app, '/api/v1/memberships', membershipRouter);
+mount(app, '/api/v1/admin/memberships', adminMembershipRouter);
+mount(app, '/api/v1/admin/dept-admin-terms', deptAdminTermRouter);
+mount(app, '/api/v1/events', eventRouter);
+mount(app, '/api/v1/announcements', announcementRouter);
+mount(app, '/api/v1/blood', bloodRouter);
+mount(app, '/api/v1/admin/blood', adminBloodRouter);
+mount(app, '/api/v1/admin/audit-logs', auditLogRouter);
+mount(app, '/api/v1/dashboard', dashboardRouter);
+mount(app, '/api/v1/chatbot', chatbotRouter);
+mount(app, '/api/v1/admin/chatbot', adminChatbotRouter);
+mount(app, '/api/v1/ai', aiRouter);
 
 // Liveness: the process is up. Touches no external service.
 app.get('/api/v1/health', (_req, res) => {
@@ -82,6 +84,9 @@ app.get('/api/v1/health/ready', async (_req, res) => {
   const ready = db === 'ok' && cache === 'ok';
   res.status(ready ? 200 : 503).json({ success: ready, data: { db, redis: cache } });
 });
+
+// Interactive API docs (D46): off in production unless API_DOCS=on, then super admin only.
+if (docsEnabled) app.use('/api/docs', docsRouter);
 
 app.use('/api', notFoundHandler);
 app.use(errorHandler);
