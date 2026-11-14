@@ -8,14 +8,17 @@ test.describe('workspace shell', () => {
   // The sidebar comes from one table (nav.ts): everyone with a department gets "My club",
   // students get "Membership" (by account type), everyone browses events, everyone but the
   // super admin registers, organizers create events, everyone reads announcements and the blood
-  // hub, and only admins get the Admin group (with Blood verifications).
+  // hub, and only admins get the Admin group (with Blood verifications, and Audit logs for the super
+  // admin).
   const DEPARTMENT_LINKS = ['Overview', 'Profile', 'My club', 'All clubs'];
   const ATTENDEE_EVENT_LINKS = ['Browse events', 'My registrations'];
-  for (const [who, user, tag, links] of [
+  // Each account lands on its own overview section (D13, D43).
+  for (const [who, user, tag, section, links] of [
     [
       'student',
       USERS.student,
       'Student · CSE',
+      'Your campus',
       [
         ...DEPARTMENT_LINKS,
         'Membership',
@@ -28,12 +31,14 @@ test.describe('workspace shell', () => {
       'faculty',
       USERS.faculty,
       'Faculty · CSE',
+      'Your campus',
       [...DEPARTMENT_LINKS, ...ATTENDEE_EVENT_LINKS, 'Announcements', 'Blood donation'],
     ],
     [
       'super admin',
       USERS.admin,
       'Super admin',
+      'System overview',
       [
         'Overview',
         'Profile',
@@ -46,6 +51,7 @@ test.describe('workspace shell', () => {
         'Memberships',
         'Dept admins',
         'Blood verifications',
+        'Audit logs',
       ],
     ],
   ] as const) {
@@ -58,7 +64,7 @@ test.describe('workspace shell', () => {
       );
       await expect(nav.getByRole('link')).toHaveText(links);
       await expect(page.getByRole('complementary').getByText(tag, { exact: true })).toBeVisible();
-      await expect(page.getByRole('region', { name: 'Your profile' })).toBeVisible();
+      await expect(page.getByRole('region', { name: section })).toBeVisible();
 
       await nav.getByRole('link', { name: 'Profile' }).click();
       await expect(page).toHaveURL(/\/dashboard\/profile$/);

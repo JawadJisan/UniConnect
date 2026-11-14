@@ -3,7 +3,6 @@ import type { AdminUserDetail, AdminUserSummary } from '@uniconnect/shared';
 import { UserDetailView } from '@/app/(app)/dashboard/admin/users/_components/user-detail-view';
 import { paramsFromUrl, UsersView } from '@/app/(app)/dashboard/admin/users/_components/users-view';
 import { SessionsCard } from '@/app/(app)/dashboard/profile/_components/sessions-card';
-import { OverviewView } from '@/app/(app)/dashboard/_components/overview-view';
 import { Workspace } from '@/app/(app)/_components/workspace';
 import { toast } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
@@ -347,17 +346,6 @@ describe('user detail', () => {
 
     expect(await screen.findByText('End their terms first.')).toBeTruthy();
     expect(patch).toHaveBeenCalledWith(`/v1/admin/users/${USER_ID}`, { department_id: 2 });
-  });
-});
-
-describe('overview', () => {
-  it('links a super admin to user management', async () => {
-    serve();
-    renderPage(<OverviewView />);
-    const link = await screen.findByRole('link', {
-      name: 'Manage every user: suspend, activate and repair roles',
-    });
-    expect(link.getAttribute('href')).toBe('/dashboard/admin/users');
   });
 });
 
