@@ -1,5 +1,6 @@
 import type { Role, UserType } from '@uniconnect/shared';
 import {
+  BotMessageSquareIcon,
   CalendarDaysIcon,
   CalendarPlusIcon,
   DropletIcon,
@@ -56,6 +57,7 @@ export const ANNOUNCEMENTS_HREF = '/dashboard/announcements';
 export const BLOOD_HREF = '/dashboard/blood';
 export const BLOOD_VERIFICATIONS_HREF = '/dashboard/admin/blood-verifications';
 export const AUDIT_LOGS_HREF = '/dashboard/admin/audit-logs';
+export const CHATBOT_LOGS_HREF = '/dashboard/admin/chatbot-logs';
 
 /** Roles that belong to a department, and so have a club of their own. */
 const DEPARTMENT_ROLES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
@@ -128,6 +130,12 @@ export const NAV: NavGroup[] = [
         roles: ['dept_admin', 'super_admin'],
       },
       { label: 'Audit logs', href: AUDIT_LOGS_HREF, Icon: ScrollTextIcon, roles: ['super_admin'] },
+      {
+        label: 'Chatbot logs',
+        href: CHATBOT_LOGS_HREF,
+        Icon: BotMessageSquareIcon,
+        roles: ['super_admin'],
+      },
     ],
   },
 ];

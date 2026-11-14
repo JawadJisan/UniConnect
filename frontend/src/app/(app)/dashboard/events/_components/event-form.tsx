@@ -30,11 +30,12 @@ import { useClubs, useMyClub } from '@/hooks/use-clubs';
 import { useDepartments } from '@/hooks/use-departments';
 import { useCreateEvent, useUpdateEvent } from '@/hooks/use-events';
 import type { ApiError } from '@/lib/api';
-import { dhakaInputValue, fromDhakaInput } from '@/lib/events';
+import { canOrganize, dhakaInputValue, fromDhakaInput } from '@/lib/events';
 import { applyServerError } from '@/lib/server-errors';
 import { cn } from '@/lib/utils';
 import { Panel } from '../../../_components/panel';
 import { useProfile } from '../../../_components/require-session';
+import { DraftDescriptionButton } from './draft-description';
 
 const FORM_ID = 'event-form';
 const DESCRIPTION_MAX = 5000;
@@ -232,6 +233,8 @@ export function EventForm({ mode, event }: EventFormProps) {
     handleSubmit,
     reset,
     setError,
+    setValue,
+    setFocus,
     control,
     formState: { errors, dirtyFields, isDirty, isSubmitting },
   } = useForm<EventFormInput, unknown, Values>({
@@ -243,10 +246,27 @@ export function EventForm({ mode, event }: EventFormProps) {
   const clubId = useWatch({ control, name: 'organizer_club_id' });
   const isPaid = useWatch({ control, name: 'is_paid' });
   const description = useWatch({ control, name: 'description' }) ?? '';
+  const title = useWatch({ control, name: 'title' }) ?? '';
+  const startDate = useWatch({ control, name: 'start_date' }) ?? '';
+  const venue = useWatch({ control, name: 'venue' }) ?? '';
   const club = clubs.data?.data.find((c) => String(c.id) === clubId);
   const organizerDepartmentId =
     club?.department.id ??
     (myClub.data && String(myClub.data.id) === clubId ? myClub.data.department.id : undefined);
+  const clubName =
+    mode === 'edit'
+      ? event.organizer_club.name
+      : (club?.name ?? (myClub.data && String(myClub.data.id) === clubId ? myClub.data.name : ''));
+
+  // FR-AI-003: the draft only fills the field; the organizer reviews it and saves as usual.
+  function applyDraft(text: string) {
+    setValue('description', text.slice(0, DESCRIPTION_MAX), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setFocus('description');
+    toast.success('Draft added. Review it before saving.');
+  }
 
   async function onSubmit(values: Values) {
     setFormError(null);
@@ -402,6 +422,18 @@ export function EventForm({ mode, event }: EventFormProps) {
           error={err('description')}
           className="sm:col-span-2"
         >
+          {canOrganize(profile.role) ? (
+            <DraftDescriptionButton
+              source={{
+                title,
+                clubName,
+                date: LOCAL_DATETIME.test(startDate) ? fromDhakaInput(startDate) : '',
+                venue,
+              }}
+              hasDescription={description.trim() !== ''}
+              onDraft={applyDraft}
+            />
+          ) : null}
           <Textarea
             {...controlProps('event-description', { error: err('description') })}
             {...register('description')}
