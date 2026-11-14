@@ -1,15 +1,18 @@
 'use client';
 
-import type { Role, UserProfile } from '@uniconnect/shared';
+import type { UserProfile } from '@uniconnect/shared';
 import { CheckIcon, CircleIcon } from 'lucide-react';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { formatDate } from '@/lib/format';
+import { dashboardSections } from '@/lib/dashboard';
 import { nameWords } from '@/lib/names';
-import { ROLE_CAPABILITIES, ROLE_LABEL, USER_TYPE_LABEL } from '../../_components/nav';
+import { ROLE_LABEL } from '../../_components/nav';
 import { Panel } from '../../_components/panel';
 import { useProfile } from '../../_components/require-session';
+import { DeptAdminSection } from './dept-admin-section';
+import { ModeratorSection } from './moderator-section';
+import { PersonalSection } from './personal-section';
+import { SuperAdminSection } from './super-admin-section';
 
 export interface ChecklistItem {
   id: string;
@@ -57,22 +60,18 @@ export function greetingName(name: string) {
   return nameWords(name)[0] ?? name.trim();
 }
 
-/** Each role as a person, for "What you can do as …". "Faculty" names a group, not a person. */
-export const ROLE_AS_PERSON: Record<Role, string> = {
-  student: 'a student',
-  faculty: 'a faculty member',
-  moderator: 'a moderator',
-  dept_admin: 'a department admin',
-  super_admin: 'the super admin',
-};
-
+/**
+ * /dashboard (PRD FR-DASH-001–004; DECISIONS D13, D42, D43). The role view first, then the
+ * personal view for every student and faculty account. The profile checklist stays at the
+ * bottom while anything is missing, for every role.
+ */
 export function OverviewView() {
   const profile = useProfile();
-  const checklist = profileChecklist(profile);
-  const remaining = checklist.filter((i) => !i.done).length;
+  const sections = dashboardSections(profile.role, profile.user_type);
+  const stacked = sections.length > 1;
 
   return (
-    <div className="container-wide flex flex-col gap-8 py-8">
+    <div className="container-wide flex flex-col gap-10 py-8">
       <header className="flex flex-col gap-1.5">
         <h1 className="text-display-sm">Welcome, {greetingName(profile.name)}</h1>
         <p className="text-sm text-fg-secondary">
@@ -82,101 +81,60 @@ export function OverviewView() {
         </p>
       </header>
 
-      <div className="grid items-start gap-4 lg:grid-cols-3">
-        <Panel
-          id="checklist-title"
-          title="Your profile"
-          tag="SYS.PROFILE.CHECK"
-          description={
-            remaining === 0
-              ? 'Everything is filled in.'
-              : `${checklist.length - remaining} of ${checklist.length} done.`
-          }
-          className="lg:col-span-2"
-          footer={
-            <Link
-              href="/dashboard/profile"
-              className={buttonVariants({ variant: remaining ? 'default' : 'secondary' })}
-            >
-              {remaining ? 'Complete your profile' : 'Edit profile'}
-            </Link>
-          }
-        >
-          <ul className="flex flex-col divide-y divide-border">
-            {checklist.map((item) => (
-              <li key={item.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
-                {item.done ? (
-                  <CheckIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-success" />
-                ) : (
-                  <CircleIcon
-                    aria-hidden="true"
-                    className="mt-0.5 size-4 shrink-0 text-fg-tertiary"
-                  />
-                )}
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-sm text-foreground">
-                    {item.label}
-                    <span className="sr-only">{item.done ? ' (done)' : ' (missing)'}</span>
-                  </span>
-                  {!item.done ? (
-                    <span className="text-sm text-fg-tertiary">{item.hint}</span>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Panel>
+      {sections.map((section) => {
+        switch (section) {
+          case 'super_admin':
+            return <SuperAdminSection key={section} />;
+          case 'moderator':
+            return <ModeratorSection key={section} />;
+          case 'dept_admin':
+            return <DeptAdminSection key={section} />;
+          case 'personal':
+            return <PersonalSection key={section} profile={profile} stacked={stacked} />;
+        }
+      })}
 
-        <Panel id="account-title" title="Account" tag="SYS.ACCOUNT">
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-sm">
-            <dt className="text-fg-tertiary">Type</dt>
-            <dd className="text-foreground">{USER_TYPE_LABEL[profile.user_type]}</dd>
-            <dt className="text-fg-tertiary">Role</dt>
-            <dd className="text-foreground">{ROLE_LABEL[profile.role]}</dd>
-            <dt className="text-fg-tertiary">Department</dt>
-            <dd className="text-foreground">{profile.department?.name ?? 'All departments'}</dd>
-            <dt className="text-fg-tertiary">Member since</dt>
-            <dd className="font-mono text-foreground tabular-nums">
-              {formatDate(profile.created_at)}
-            </dd>
-          </dl>
-        </Panel>
-
-        <Panel
-          id="access-title"
-          title={`What you can do as ${ROLE_AS_PERSON[profile.role]}`}
-          tag="SYS.ACCESS"
-          description="Parts that are built link to their page. The rest will appear in the sidebar as they ship."
-          className="lg:col-span-3"
-        >
-          <ul className="grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
-            {ROLE_CAPABILITIES[profile.role].map((cap) => (
-              <li key={cap.text} className="flex items-start justify-between gap-3 text-sm">
-                {cap.href ? (
-                  <>
-                    <Link
-                      href={cap.href}
-                      className="text-foreground underline-offset-4 hover:underline focus-visible:underline"
-                    >
-                      {cap.text}
-                    </Link>
-                    <Badge variant="success" className="shrink-0">
-                      Available
-                    </Badge>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-fg-secondary">{cap.text}</span>
-                    <Badge variant="secondary" className="shrink-0">
-                      Not built yet
-                    </Badge>
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
+      <ProfilePanel profile={profile} />
     </div>
+  );
+}
+
+/** What's still missing from the profile; hidden once everything is filled in. */
+function ProfilePanel({ profile }: { profile: UserProfile }) {
+  const checklist = profileChecklist(profile);
+  const remaining = checklist.filter((i) => !i.done).length;
+  if (remaining === 0) return null;
+  return (
+    <Panel
+      id="checklist-title"
+      title="Finish your profile"
+      tag="SYS.PROFILE.CHECK"
+      description={`${checklist.length - remaining} of ${checklist.length} done.`}
+      className="max-w-3xl"
+      footer={
+        <Link href="/dashboard/profile" className={buttonVariants({ variant: 'default' })}>
+          Complete your profile
+        </Link>
+      }
+    >
+      <ul className="flex flex-col divide-y divide-border">
+        {checklist.map((item) => (
+          <li key={item.id} className="flex items-start gap-3 py-2.5 first:pt-0 last:pb-0">
+            {item.done ? (
+              <CheckIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-success" />
+            ) : (
+              <CircleIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-fg-tertiary" />
+            )}
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-sm text-foreground">
+                {item.label}
+                <span className="sr-only">{item.done ? ' (done)' : ' (missing)'}</span>
+              </span>
+              {!item.done ? <span className="text-sm text-fg-tertiary">{item.hint}</span> : null}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Panel>
   );
 }
