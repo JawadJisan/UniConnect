@@ -240,3 +240,98 @@ describe('edit event', () => {
     expect(await screen.findByText(/completed and can no longer be edited/)).toBeTruthy();
   });
 });
+
+// FR-AI-003 (D44, D45): Draft with AI fills the description from the form's own fields.
+describe('draft with AI', () => {
+  const DRAFT_URL = '/v1/ai/generate-event-description';
+  const DRAFT = 'Join the CSE Club for Hack Night, a night of building and learning in Hall 2.';
+  const draftButton = () => screen.getByRole('button', { name: /Draft with AI|Drafting/ });
+  const descriptionBox = () => screen.getByLabelText(/^Description/) as HTMLTextAreaElement;
+  const draftCalls = () => post.mock.calls.filter(([url]) => url === DRAFT_URL);
+
+  it('waits for a title, start time and venue, then sends them with the club name', async () => {
+    serve(deptAdmin());
+    post.mockResolvedValue(ok({ description: DRAFT }));
+    renderPage(<NewEventView />);
+    const club = (await screen.findByLabelText('Organizing club')) as HTMLInputElement;
+    await waitFor(() => expect(club.value).toBe('CSE Club'));
+
+    expect(draftButton()).toHaveProperty('disabled', true);
+    expect(
+      screen.getByText('Add a title, a start time and a venue to draft a description.'),
+    ).toBeTruthy();
+
+    fill('Title', 'Hack Night');
+    fill('Starts', '2030-01-10T14:00');
+    expect(screen.getByText('Add a venue to draft a description.')).toBeTruthy();
+    fill(/^Venue/, 'Hall 2');
+    expect(draftButton()).toHaveProperty('disabled', false);
+
+    fireEvent.click(draftButton());
+    await waitFor(() => expect(descriptionBox().value).toBe(DRAFT));
+    expect(post).toHaveBeenCalledWith(DRAFT_URL, {
+      title: 'Hack Night',
+      club_name: 'CSE Club',
+      date: '2030-01-10T14:00:00+06:00',
+      venue: 'Hall 2',
+    });
+    // Filled, not saved: no event was created.
+    expect(post.mock.calls.filter(([url]) => url === '/v1/events')).toHaveLength(0);
+  });
+
+  it('asks before replacing a description, and Keep mine sends nothing', async () => {
+    serve(deptAdmin(), event({ description: 'My own words.' }));
+    post.mockResolvedValue(ok({ description: DRAFT }));
+    renderPage(<EditEventView />);
+    await screen.findByDisplayValue('My own words.');
+
+    fireEvent.click(draftButton());
+    let dialog = await screen.findByRole('dialog', { name: 'Replace the current description?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep mine' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(draftCalls()).toHaveLength(0);
+    expect(descriptionBox().value).toBe('My own words.');
+
+    fireEvent.click(draftButton());
+    dialog = await screen.findByRole('dialog', { name: 'Replace the current description?' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Replace' }));
+    await waitFor(() => expect(descriptionBox().value).toBe(DRAFT));
+    expect(draftCalls()[0]![1]).toMatchObject({ club_name: 'CSE Club', venue: 'Hall 2' });
+
+    // The draft counts as an edit, so it can be saved like any other change.
+    expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty('disabled', false);
+  });
+
+  it('works on a published event, whose description is still editable', async () => {
+    serve(deptAdmin(), event({ status: 'published' }));
+    renderPage(<EditEventView />);
+    await screen.findByDisplayValue('Hack Night');
+    expect(draftButton()).toHaveProperty('disabled', false);
+  });
+
+  it('says why a draft failed and leaves the field alone', async () => {
+    serve(deptAdmin(), event());
+    post.mockRejectedValueOnce(apiError(503, 'AI_UNAVAILABLE'));
+    post.mockRejectedValueOnce(apiError(503, 'AI_NOT_CONFIGURED'));
+    renderPage(<EditEventView />);
+    await screen.findByDisplayValue('Hack Night');
+
+    fireEvent.click(draftButton());
+    expect(
+      await screen.findByText('The assistant is unavailable right now. Try again shortly.'),
+    ).toBeTruthy();
+
+    fireEvent.click(draftButton());
+    expect(await screen.findByText("The assistant isn't set up on this server.")).toBeTruthy();
+    expect(descriptionBox().value).toBe('');
+  });
+
+  it('names the shared rate limit on a 429', async () => {
+    serve(deptAdmin(), event());
+    post.mockRejectedValue(apiError(429, 'RATE_LIMITED'));
+    renderPage(<EditEventView />);
+    await screen.findByDisplayValue('Hack Night');
+    fireEvent.click(draftButton());
+    expect(await screen.findByText(/reached the limit of 10 AI requests a minute/)).toBeTruthy();
+  });
+});

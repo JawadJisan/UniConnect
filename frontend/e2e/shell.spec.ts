@@ -52,6 +52,7 @@ test.describe('workspace shell', () => {
         'Dept admins',
         'Blood verifications',
         'Audit logs',
+        'Chatbot logs',
       ],
     ],
   ] as const) {
