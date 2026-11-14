@@ -4,12 +4,13 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from './config/env.js';
 import { auth } from './lib/auth.js';
-import { prisma } from './lib/prisma.js';
-import { redis } from './lib/redis.js';
+import { checkHealth } from './lib/health.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { adminUserRouter } from './modules/admin-users/admin-user.routes.js';
 import { announcementRouter } from './modules/announcements/announcement.routes.js';
+import { auditLogRouter } from './modules/audit-logs/audit-log.routes.js';
 import { adminBloodRouter, bloodRouter } from './modules/blood/blood.routes.js';
+import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { clubRouter } from './modules/clubs/club.routes.js';
 import { departmentRouter } from './modules/departments/department.routes.js';
@@ -47,35 +48,17 @@ app.use('/api/v1/events', eventRouter);
 app.use('/api/v1/announcements', announcementRouter);
 app.use('/api/v1/blood', bloodRouter);
 app.use('/api/v1/admin/blood', adminBloodRouter);
+app.use('/api/v1/admin/audit-logs', auditLogRouter);
+app.use('/api/v1/dashboard', dashboardRouter);
 
 // Liveness: the process is up. Touches no external service.
 app.get('/api/v1/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok', service: 'uniconnect-api' } });
 });
 
-const READY_TIMEOUT_MS = 5000;
-
-async function check(run: () => Promise<unknown>): Promise<'ok' | 'error'> {
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('timeout')), READY_TIMEOUT_MS);
-  });
-  try {
-    await Promise.race([run(), timeout]);
-    return 'ok';
-  } catch {
-    return 'error';
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 // Readiness: Postgres (Neon) and Redis (Upstash) both answer.
 app.get('/api/v1/health/ready', async (_req, res) => {
-  const [db, cache] = await Promise.all([
-    check(() => prisma.$queryRaw`SELECT 1`),
-    check(() => redis.ping()),
-  ]);
+  const { db, redis: cache } = await checkHealth();
   const ready = db === 'ok' && cache === 'ok';
   res.status(ready ? 200 : 503).json({ success: ready, data: { db, redis: cache } });
 });

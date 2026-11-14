@@ -10,6 +10,7 @@ import {
   LayoutGridIcon,
   MegaphoneIcon,
   ReceiptTextIcon,
+  ScrollTextIcon,
   ShieldCheckIcon,
   TicketIcon,
   UserRoundIcon,
@@ -54,6 +55,7 @@ export const NEW_EVENT_HREF = '/dashboard/events/new';
 export const ANNOUNCEMENTS_HREF = '/dashboard/announcements';
 export const BLOOD_HREF = '/dashboard/blood';
 export const BLOOD_VERIFICATIONS_HREF = '/dashboard/admin/blood-verifications';
+export const AUDIT_LOGS_HREF = '/dashboard/admin/audit-logs';
 
 /** Roles that belong to a department, and so have a club of their own. */
 const DEPARTMENT_ROLES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
@@ -125,6 +127,7 @@ export const NAV: NavGroup[] = [
         Icon: HeartPulseIcon,
         roles: ['dept_admin', 'super_admin'],
       },
+      { label: 'Audit logs', href: AUDIT_LOGS_HREF, Icon: ScrollTextIcon, roles: ['super_admin'] },
     ],
   },
 ];
@@ -163,57 +166,4 @@ export const USER_TYPE_LABEL: Record<UserType, string> = {
   student: 'Student',
   faculty: 'Faculty',
   super_admin: 'Super admin',
-};
-
-export interface Capability {
-  text: string;
-  /** The page that does it, once it exists. Without one it shows as "Not built yet". */
-  href?: string;
-}
-
-/**
- * What each role will be able to do, from the PRD §5 capability matrix. Shown on the overview:
- * built ones link to their page, the rest are plain text marked "Not built yet".
- */
-export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
-  student: [
-    {
-      text: "Join your department's club with a monthly or yearly membership",
-      href: MEMBERSHIPS_HREF,
-    },
-    {
-      href: EVENTS_HREF,
-      text: 'Browse events and register, including other departments’ public events',
-    },
-    { text: 'Record your blood donations and answer blood requests', href: BLOOD_HREF },
-    { text: 'Ask the chatbot about clubs, events and rules you can see' },
-  ],
-  faculty: [
-    { text: "View your department's club and its announcements", href: ANNOUNCEMENTS_HREF },
-    { text: 'Browse events and register', href: EVENTS_HREF },
-    { text: 'Record your blood donations and answer blood requests', href: BLOOD_HREF },
-    { text: 'Ask the chatbot about clubs, events and rules you can see' },
-  ],
-  moderator: [
-    { text: "Create, publish and cancel your club's events", href: NEW_EVENT_HREF },
-    { text: 'Check attendees in and export registrations', href: EVENTS_HREF },
-    { text: 'Post announcements to your club', href: ANNOUNCEMENTS_HREF },
-    { text: 'Everything your student or faculty account already allows' },
-  ],
-  dept_admin: [
-    { text: "Edit your department's club details and fees", href: MY_CLUB_HREF },
-    { text: "See and cancel your department's club memberships", href: ADMIN_MEMBERSHIPS_HREF },
-    { text: 'Assign committee members', href: MY_CLUB_HREF },
-    { text: 'Verify blood donations in your department', href: BLOOD_VERIFICATIONS_HREF },
-    { text: 'Manage department events', href: EVENTS_HREF },
-    { text: 'Post and pin department announcements', href: ANNOUNCEMENTS_HREF },
-  ],
-  super_admin: [
-    { text: 'Manage every user: suspend, activate and repair roles', href: ADMIN_USERS_HREF },
-    { text: 'See club memberships and payments across departments', href: ADMIN_MEMBERSHIPS_HREF },
-    { text: 'Assign department admin terms', href: DEPT_ADMINS_HREF },
-    { text: 'Post and pin announcements for any department or club', href: ANNOUNCEMENTS_HREF },
-    { text: 'Verify blood donations in any department', href: BLOOD_VERIFICATIONS_HREF },
-    { text: 'Read the audit log' },
-  ],
 };

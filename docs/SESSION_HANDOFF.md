@@ -4,78 +4,57 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Phase 7, the blood module, both parts, on `feat/blood` cut from `development`.
+Phase 8, dashboards and the audit log viewer, on `feat/dashboards`. Both parts are done.
 
-- **Part 1, the backend:** done and committed this session (D40). The previous handoff in git history covers it.
-- **Part 2, the frontend:** plan approved by the user 2026-11-14 (D41), including the three design calls: outline blood-group badge, a separate admin route, and tabs kept in the URL.
-
-Next: merge `feat/blood` into `development` when the user asks. Then Phase 8 (dashboards and the audit-log viewer, D13).
+- **Part 1, the backend (D13, D42):** committed this session in four commits (`869a507`..`210d55f`). That commit's handoff, in git history, has the details: the integration hang fix and the personal view's "upcoming" bug.
+- **Part 2, the frontend (D43):** built this session from the plan the user approved on 2026-11-14, committed in `2178957` (feature), `1ce8f92` (tests) and `2f2a904` (docs), then merged into `development`.
 
 ## Completed work (Part 2)
 
-- **Shared UI:**
-  - `components/ui/tabs.tsx`: Base UI Tabs with tokens. `@base-ui/react` already ships it, so no dependency changed.
-  - `components/blood-badges.tsx`: `BloodGroupBadge` (outline, droplet, real minus, spoken label), `BloodRequestStatusBadge`, `DonationStatusBadge`.
-- **`lib/blood.ts`:**
-  - `formatBloodGroup`, `spokenBloodGroup`
-  - status metadata
-  - `canRecordDonation`, `canVerify`
-  - `todayInDhaka`
-  - URL readers for the tab, `r_*`, `d_*`, `m_*` and the admin queue
-- **`hooks/use-blood.ts`:**
-  - Four list queries and five mutations.
-  - Fulfill and cancel write the returned row into the cache.
-  - Verify removes the row from the queue and refreshes `me`.
-  - A 503 `BLOOD_BUSY` is retried once.
-- **`/dashboard/blood`:**
-  - `blood-hub-view.tsx`
-  - tabs: `requests-tab.tsx`, `donors-tab.tsx`, `my-donations-tab.tsx`
-  - dialogs: `blood-request-dialog.tsx`, `record-donation-dialog.tsx`, `fulfill-request-dialog.tsx`, `cancel-request-dialog.tsx`
-  - `list-states.tsx`, `use-url-params.ts`
-- **`/dashboard/admin/blood-verifications`:** `blood-verifications-view.tsx`, `verify-donation-dialog.tsx`.
-- **Navigation (`nav.ts`):**
-  - New Blood group (Blood donation, every role).
-  - Admin group gains Blood verifications (dept and super admins).
-  - The overview's blood capability lines now link.
+- **Data:**
+  - `hooks/use-dashboard.ts`: one query per view. The moderator's 404 `NO_COMMITTEE_SEAT` comes back as `{ kind: 'no_seat' }`. The super admin view refetches every 60 s.
+  - `hooks/use-audit-logs.ts`
+  - `lib/dashboard.ts`: section order, chart rows, tones.
+  - `lib/audit.ts`: URL params, action groups, `jsonDiff`.
+- **Overview `/dashboard`** (`dashboard/_components/`):
+  - `overview-view.tsx` stacks the sections: role view first, then personal for student and faculty accounts; a super admin gets only the system view.
+  - Sections: `personal-section.tsx`, `moderator-section.tsx`, `dept-admin-section.tsx`, `super-admin-section.tsx`.
+  - Pieces: `stat-tile.tsx`, `section-state.tsx`, `bar-chart.tsx` (Recharts, one hue, `sr-only` table), `health-strip.tsx`, `committee-list.tsx`, `status-counts.tsx`.
+  - The profile checklist now shows only while incomplete. The "What you can do" panel, `ROLE_CAPABILITIES` and the Account panel are removed.
+- **Audit log `/dashboard/admin/audit-logs`:** `audit-logs-view.tsx`, `audit-diff-dialog.tsx`, and shared cells in `app/(app)/_components/audit-cells.tsx`.
+  - Filters live in the URL.
+  - Clicking an actor's name filters to that person, in place of a person picker.
+  - The two dates are kept in local state and written to the URL together. The first E2E run showed that a quick second date edit could drop the first, and a regression test now covers it.
+- **Nav:** "Audit logs" under Admin, super admin only. The old `U+FFFD` text went with `ROLE_CAPABILITIES`.
 - **Tests:**
-  - `tests/lib/blood.test.ts`
-  - `tests/app/blood.test.tsx` (17)
-  - `tests/app/nav.test.ts` updated
-  - `e2e/blood.spec.ts` (2 journeys)
-  - `e2e/shell.spec.ts` updated
-- **Docs:**
-  - `DESIGN.md` §7 (Tabs, Blood hub, Blood dialogs, Blood verifications, Blood badges) and §11
-  - `DECISIONS.md` D41
-  - `TASKS.md` Phase 7 Done
-  - `CLAUDE.md`
+  - New: `tests/lib/dashboard.test.ts`, `tests/lib/audit.test.ts`, `tests/app/dashboard.test.tsx` (12), `tests/app/audit-logs.test.tsx` (10), `e2e/dashboard.spec.ts` (2).
+  - Updated: `nav.test.ts`, `admin-users.test.tsx` (the overview link check moved to `dashboard.test.tsx`), `e2e/shell.spec.ts`.
+- **Docs:** `DESIGN.md` §7 (Overview, Stat tile, Chart, Health strip, Audit log, Audit diff) and §11, `DECISIONS.md` D43, `TASKS.md` (Phase 8 Done), `CLAUDE.md`.
 
 ## Commands executed and results (Part 2)
 
-| Command                                                                                            | Result                                                                                                                                                                                                                   |
-| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm --filter @uniconnect/frontend test tests/lib/blood.test.ts tests/app/blood.test.tsx`         | First 22/23. The past-date error was hidden behind other errors because Zod 4 skips `superRefine` while a field is invalid. Fixed by putting the date rule on the field, then pass                                       |
-| Same plus `tests/app/nav.test.ts`                                                                  | nav 6 failed: the expected lists lacked the new Blood items. Expectations updated                                                                                                                                        |
-| `pnpm --filter @uniconnect/frontend test` (default workers)                                        | Many timeouts in unrelated suites under load. `committee.test.tsx` alone: 10/10                                                                                                                                          |
-| `pnpm --filter @uniconnect/frontend test --maxWorkers=2`                                           | **370/370** (28 suites)                                                                                                                                                                                                  |
-| `pnpm --filter @uniconnect/frontend typecheck`, `lint`                                             | pass, after one lint fix (`useMemo` inline callback)                                                                                                                                                                     |
-| `pnpm e2e blood.spec.ts shell.spec.ts`                                                             | First run: the web server timed out at 120 s. Second run: shell **5/5**, blood failed at the first login while `next dev` was still compiling                                                                            |
-| `pnpm e2e blood.spec.ts` (×3)                                                                      | Failed twice on the first hub visit, which was still compiling past 30 s. The third run passed the earlier steps, then ran out of the 120 s test budget at step 5                                                        |
-| `pnpm e2e blood.spec.ts`, after splitting into two journeys and a 60 s wait on the first hub visit | **2/2**                                                                                                                                                                                                                  |
-| `pnpm --filter @uniconnect/frontend build`                                                         | **Fails** on `/dashboard/admin/users/[id]` ("client rendering was requested outside a Suspense boundary"), a page this branch doesn't touch. Not investigated; the blood routes compiled under `next dev` (200 in ~12 s) |
-| `pnpm typecheck`, `pnpm lint`, `pnpm format:check` (final)                                         | pass                                                                                                                                                                                                                     |
+| Command                                                             | Result                                                                                                                                                                  |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @uniconnect/frontend typecheck`                      | First: a Recharts tooltip generic and a lost narrowing. Fixed, then pass                                                                                                |
+| `pnpm --filter @uniconnect/frontend test` lib tests + `nav.test.ts` | 53/53                                                                                                                                                                   |
+| `tests/app/dashboard.test.tsx`                                      | First 11/12: the test read the super admin section while it was still loading. Now it waits, 12/12. Recharts warns about a 0×0 container in jsdom (no layout); harmless |
+| `tests/app/audit-logs.test.tsx`                                     | First 9/10 (my guessed text for the arrow), then 10/10; again 10/10 after the date fix and its new assertion                                                            |
+| `pnpm --filter @uniconnect/frontend test --maxWorkers=2`            | **416/416** (32 suites), before the date fix                                                                                                                            |
+| `pnpm --filter @uniconnect/frontend build`                          | pass (the earlier Suspense failure is gone)                                                                                                                             |
+| `pnpm e2e dashboard.spec.ts shell.spec.ts`                          | shell 5/5, dashboard 1/2: `getByLabel('To')` was ambiguous, then the date race above                                                                                    |
+| `pnpm e2e dashboard.spec.ts` after both fixes                       | **2/2**                                                                                                                                                                 |
+| `pnpm typecheck`, `pnpm lint`                                       | pass                                                                                                                                                                    |
 
 ## Not covered
 
-- **Production build:** fails on the admin user detail page, as above. Needs its own look (`/debug`). It may predate this branch; that wasn't checked.
-- **Full E2E suite:** not run. Only the blood and shell specs ran.
-- **Phone in the donor directory, end to end:** the E2E seed users have no phone, so the `tel:` rendering is covered only by `blood.test.tsx`.
-- **Pre-existing encoding bug:** `nav.ts` already held two `U+FFFD` characters before this branch (the overview reads "other departments� public events"). Not fixed here.
-- **OpenAPI entries:** none (task 1c).
+- **Moderator and dept admin overviews end to end:** the E2E seed has no moderator or dept admin. Covered by `dashboard.test.tsx` against mocked API answers.
+- **The charts' look in a browser:** jsdom has no layout. The super admin E2E loads the page but doesn't check the bars. Worth a manual look in `pnpm dev`.
+- **Full E2E suite:** only the dashboard and shell specs ran.
 
 ## Exact next task
 
-When the user asks: merge `feat/blood` into `development`. Then look at the failing `next build` on `/dashboard/admin/users/[id]` before Phase 10. Phase 8 is dashboards and the audit-log viewer (D13 pending).
+Phase 9 Part 1: the AI chatbot backend plan (FR-AI-001 to 003). The user will check the dashboard charts in `pnpm dev` themselves.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, this file and D13 in `docs/DECISIONS.md`. First reproduce `pnpm --filter @uniconnect/frontend build` and find why `/dashboard/admin/users/[id]` renders outside a Suspense boundary.
+> Read `CLAUDE.md`, this file, PRD §15 and §18, and `docs/DECISIONS.md` (PRD #18, D15, D38), then plan the Phase 9 chatbot backend in plan mode.

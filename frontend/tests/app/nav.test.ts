@@ -1,4 +1,4 @@
-import { greetingName, ROLE_AS_PERSON } from '@/app/(app)/dashboard/_components/overview-view';
+import { greetingName } from '@/app/(app)/dashboard/_components/overview-view';
 import { initials } from '@/components/ui/avatar';
 import { UsersIcon } from 'lucide-react';
 import { activeHref, NAV, visibleNav, type NavGroup } from '@/app/(app)/_components/nav';
@@ -87,6 +87,7 @@ describe('workspace navigation', () => {
       '/dashboard/admin/memberships',
       '/dashboard/admin/dept-admins',
       BLOOD_VERIFY,
+      '/dashboard/admin/audit-logs',
     ]);
     expect(activeHref('/dashboard/admin/users/abc')).toBe('/dashboard/admin/users');
     expect(activeHref('/dashboard/memberships/checkout/mock')).toBe('/dashboard/memberships');
@@ -163,17 +164,5 @@ describe('greeting name', () => {
     ['Dr.', 'Dr.'],
   ])('%s → %s', (name, expected) => {
     expect(greetingName(name)).toBe(expected);
-  });
-});
-
-describe('role phrasing on the overview', () => {
-  it('reads as a person for every role', () => {
-    expect(ROLE_AS_PERSON).toEqual({
-      student: 'a student',
-      faculty: 'a faculty member',
-      moderator: 'a moderator',
-      dept_admin: 'a department admin',
-      super_admin: 'the super admin',
-    });
   });
 });
