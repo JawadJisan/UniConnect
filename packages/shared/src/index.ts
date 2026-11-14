@@ -14,3 +14,4 @@ export * from './schemas/announcement.js';
 export * from './schemas/blood.js';
 export * from './schemas/audit.js';
 export * from './schemas/dashboard.js';
+export * from './schemas/chatbot.js';
