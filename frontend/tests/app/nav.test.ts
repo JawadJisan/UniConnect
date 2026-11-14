@@ -9,6 +9,8 @@ const BASE = ['/dashboard', '/dashboard/profile', '/dashboard/clubs/my-club', '/
 const EVENTS = ['/dashboard/events', '/dashboard/events/my-registrations'];
 const NEW_EVENT = '/dashboard/events/new';
 const ANNOUNCEMENTS = '/dashboard/announcements';
+const BLOOD = '/dashboard/blood';
+const BLOOD_VERIFY = '/dashboard/admin/blood-verifications';
 
 describe('workspace navigation', () => {
   it('gives a student Membership, by account type (PRD §5), and the attendee event pages', () => {
@@ -17,6 +19,7 @@ describe('workspace navigation', () => {
       '/dashboard/memberships',
       ...EVENTS,
       ANNOUNCEMENTS,
+      BLOOD,
     ]);
   });
 
@@ -27,6 +30,7 @@ describe('workspace navigation', () => {
       ...EVENTS,
       NEW_EVENT,
       ANNOUNCEMENTS,
+      BLOOD,
     ]);
   });
 
@@ -35,6 +39,7 @@ describe('workspace navigation', () => {
       ...BASE,
       ...EVENTS,
       ANNOUNCEMENTS,
+      BLOOD,
     ]);
   });
 
@@ -44,6 +49,7 @@ describe('workspace navigation', () => {
       ...EVENTS,
       NEW_EVENT,
       ANNOUNCEMENTS,
+      BLOOD,
     ]);
   });
 
@@ -53,7 +59,9 @@ describe('workspace navigation', () => {
       ...EVENTS,
       NEW_EVENT,
       ANNOUNCEMENTS,
+      BLOOD,
       '/dashboard/admin/memberships',
+      BLOOD_VERIFY,
     ]);
   });
 
@@ -64,6 +72,7 @@ describe('workspace navigation', () => {
       'Clubs',
       'Events',
       'Updates',
+      'Blood',
       'Admin',
     ]);
     expect(hrefs(visibleNav(viewer))).toEqual([
@@ -73,9 +82,11 @@ describe('workspace navigation', () => {
       '/dashboard/events',
       NEW_EVENT,
       ANNOUNCEMENTS,
+      BLOOD,
       '/dashboard/admin/users',
       '/dashboard/admin/memberships',
       '/dashboard/admin/dept-admins',
+      BLOOD_VERIFY,
     ]);
     expect(activeHref('/dashboard/admin/users/abc')).toBe('/dashboard/admin/users');
     expect(activeHref('/dashboard/memberships/checkout/mock')).toBe('/dashboard/memberships');
@@ -109,6 +120,8 @@ describe('workspace navigation', () => {
     expect(activeHref('/dashboard/events/my-registrations')).toBe(
       '/dashboard/events/my-registrations',
     );
+    expect(activeHref('/dashboard/blood')).toBe(BLOOD);
+    expect(activeHref(BLOOD_VERIFY)).toBe(BLOOD_VERIFY);
     expect(activeHref('/elsewhere')).toBeUndefined();
   });
 });
