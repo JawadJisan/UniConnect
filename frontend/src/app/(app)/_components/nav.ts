@@ -172,7 +172,7 @@ export interface Capability {
 }
 
 /**
- * What each role will be able to do, from the PRD �5 capability matrix. Shown on the overview:
+ * What each role will be able to do, from the PRD §5 capability matrix. Shown on the overview:
  * built ones link to their page, the rest are plain text marked "Not built yet".
  */
 export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
@@ -183,7 +183,7 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     },
     {
       href: EVENTS_HREF,
-      text: 'Browse events and register, including other departments� public events',
+      text: 'Browse events and register, including other departments’ public events',
     },
     { text: 'Record your blood donations and answer blood requests', href: BLOOD_HREF },
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
