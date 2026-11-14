@@ -136,6 +136,27 @@ function filters(q: EventListQuery, now: Date): Prisma.Sql[] {
   return where;
 }
 
+/** One event as the chatbot's retrieval reads it (DECISIONS D44). */
+export interface EventHit {
+  id: number;
+  title: string;
+  description: string | null;
+  start_date: Date;
+  end_date: Date;
+  venue: string | null;
+  visibility: string;
+  is_paid: boolean;
+  fee_amount: string | null;
+  club_name: string;
+  rank: number;
+}
+
+/** The exact events_fts expression, or the GIN index is skipped (.claude/rules/database.md). */
+const EVENT_FTS = Prisma.sql`to_tsvector('simple', e.title || ' ' || coalesce(e.description, ''))`;
+
+const EVENT_HIT_COLUMNS = Prisma.sql`e.id, e.title, e.description, e.start_date, e.end_date, e.venue,
+  e.visibility, e.is_paid, e.fee_amount::text AS fee_amount, c.name AS club_name`;
+
 export const eventRepository = {
   findById(db: Db, id: number) {
     return db.event.findUnique({ where: { id }, select: EVENT_SELECT });
@@ -296,5 +317,30 @@ export const eventRepository = {
       orderBy: { id: 'asc' },
       take,
     });
+  },
+
+  /**
+   * Chatbot retrieval (FR-AI-001): published events the caller may see, by the browse rule
+   * (`visibleTo`), matching a `to_tsquery('simple', …)` string, best match first.
+   */
+  searchVisible(db: Db, caller: EventCaller, tsquery: string, today: IsoDate, limit: number) {
+    return db.$queryRaw<EventHit[]>`
+      SELECT ${EVENT_HIT_COLUMNS},
+        ts_rank(${EVENT_FTS}, to_tsquery('simple', ${tsquery}))::float8 AS rank
+      FROM events e JOIN clubs c ON c.id = e.organizer_club_id
+      WHERE e.status = 'published' AND ${visibleTo(caller, today)}
+        AND ${EVENT_FTS} @@ to_tsquery('simple', ${tsquery})
+      ORDER BY rank DESC, e.start_date ASC, e.id ASC
+      LIMIT ${limit}`;
+  },
+
+  /** The soonest upcoming published events the caller may see: the chatbot's fallback context. */
+  upcomingVisible(db: Db, caller: EventCaller, now: Date, today: IsoDate, limit: number) {
+    return db.$queryRaw<EventHit[]>`
+      SELECT ${EVENT_HIT_COLUMNS}, 0::float8 AS rank
+      FROM events e JOIN clubs c ON c.id = e.organizer_club_id
+      WHERE e.status = 'published' AND e.start_date > ${ts(now)} AND ${visibleTo(caller, today)}
+      ORDER BY e.start_date ASC, e.id ASC
+      LIMIT ${limit}`;
   },
 };

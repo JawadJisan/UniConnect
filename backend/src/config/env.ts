@@ -36,6 +36,12 @@ const envSchema = z
     // Membership payments (DECISIONS D32). `mock` stands in for SSLCommerz until the merchant
     // account exists; it is refused in production. `sslcommerz` is not built yet.
     PAYMENT_GATEWAY: z.enum(['mock', 'sslcommerz']).default('mock'),
+
+    // Gemini (PRD FR-AI; DECISIONS D44). Optional in development and test: without both, the
+    // chatbot and the event description generator answer 503 AI_NOT_CONFIGURED. The model ID is
+    // never hard-coded. Tests mock src/lib/gemini.ts.
+    GEMINI_API_KEY: z.string().optional(),
+    GEMINI_MODEL: z.string().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV !== 'production') return;
@@ -61,6 +67,8 @@ const envSchema = z
       'CLOUDINARY_CLOUD_NAME',
       'CLOUDINARY_API_KEY',
       'CLOUDINARY_API_SECRET',
+      'GEMINI_API_KEY',
+      'GEMINI_MODEL',
     ] as const;
     for (const key of required) {
       if (!value[key]) {

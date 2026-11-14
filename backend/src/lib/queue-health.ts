@@ -9,7 +9,7 @@ import { createRedis } from './redis.js';
 // rather than failing the dashboard.
 
 /** Every BullMQ queue the API runs (src/queues/). */
-export const QUEUE_NAMES = ['email', 'memberships', 'terms', 'events', 'blood'] as const;
+export const QUEUE_NAMES = ['email', 'memberships', 'terms', 'events', 'blood', 'chatbot'] as const;
 
 const COUNT_TIMEOUT_MS = 3000;
 

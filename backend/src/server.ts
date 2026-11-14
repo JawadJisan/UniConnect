@@ -5,11 +5,13 @@ import { prisma } from './lib/prisma.js';
 import { closeQueueHealth } from './lib/queue-health.js';
 import { redis } from './lib/redis.js';
 import { closeBloodQueue, scheduleBloodJobs } from './queues/blood.queue.js';
+import { closeChatbotQueue, scheduleChatbotJobs } from './queues/chatbot.queue.js';
 import { closeEmailQueue } from './queues/email.queue.js';
 import { closeEventQueue, scheduleEventJobs } from './queues/event.queue.js';
 import { closeMembershipQueue, scheduleMembershipJobs } from './queues/membership.queue.js';
 import { closeTermQueue, scheduleTermJobs } from './queues/term.queue.js';
 import { startBloodWorker } from './workers/blood.worker.js';
+import { startChatbotWorker } from './workers/chatbot.worker.js';
 import { startEmailWorker } from './workers/email.worker.js';
 import { startEventWorker } from './workers/event.worker.js';
 import { startMembershipWorker } from './workers/membership.worker.js';
@@ -33,6 +35,10 @@ const bloodWorker = startBloodWorker();
 scheduleBloodJobs().catch((err: Error) => {
   logger.error(`blood job schedules not registered: ${err.message}`);
 });
+const chatbotWorker = startChatbotWorker();
+scheduleChatbotJobs().catch((err: Error) => {
+  logger.error(`chatbot job schedules not registered: ${err.message}`);
+});
 
 const server = app.listen(env.PORT, () => {
   logger.info(`API listening on http://localhost:${env.PORT}`);
@@ -51,11 +57,13 @@ async function shutdown(signal: string) {
     termWorker.close(),
     eventWorker.close(),
     bloodWorker.close(),
+    chatbotWorker.close(),
     closeEmailQueue(),
     closeMembershipQueue(),
     closeTermQueue(),
     closeEventQueue(),
     closeBloodQueue(),
+    closeChatbotQueue(),
     closeQueueHealth(),
   ]);
   await Promise.allSettled([prisma.$disconnect(), redis.quit()]);
