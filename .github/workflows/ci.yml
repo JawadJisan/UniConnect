@@ -1,0 +1,54 @@
+# Lint, types, unit tests and production builds on every push and pull request to the two
+# long-lived branches (PRD §3; DECISIONS D46). Integration and Playwright suites need the Neon
+# `test` branch and run locally (CLAUDE.md), so CI never touches a database, Redis or Gemini:
+# the values below are placeholders that only satisfy env validation and `prisma generate`.
+name: CI
+
+on:
+  push:
+    branches: [development, main]
+  pull_request:
+    branches: [development, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+      DATABASE_URL_UNPOOLED: postgresql://ci:ci@localhost:5432/ci
+      REDIS_URL: redis://localhost:6379
+      BETTER_AUTH_SECRET: ci-placeholder-secret-never-used-for-anything-real
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version from package.json "packageManager".
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (builds @uniconnect/shared first)
+        run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm format:check
+
+      - name: Unit tests (backend, frontend, shared)
+        run: pnpm test
+
+      - name: Production builds
+        run: pnpm build
