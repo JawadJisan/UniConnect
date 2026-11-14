@@ -11,7 +11,7 @@ import { env } from '../../config/env.js';
 import { AppError, conflict, forbidden } from '../../lib/http-error.js';
 import type { EventRegistrationStatus } from '@uniconnect/shared';
 import { logger } from '../../lib/logger.js';
-import { isUniqueViolation } from '../../lib/prisma-errors.js';
+import { isLockWait, isUniqueViolation } from '../../lib/prisma-errors.js';
 import { prisma } from '../../lib/prisma.js';
 import { enqueueEmail } from '../../queues/email.queue.js';
 import { auditService } from '../../services/audit.service.js';
@@ -49,15 +49,6 @@ const EVENT_BUSY = () =>
  */
 const LOCK_WAIT = '15s';
 const REGISTER_TX = { maxWait: 15_000, timeout: 25_000 };
-
-/** A lock_timeout cancel (55P03) or Prisma's transaction timeout (P2028). */
-function isLockWait(err: unknown): boolean {
-  const e = err as { code?: string; meta?: unknown; message?: string } | null;
-  if (!e) return false;
-  if (e.code === 'P2028') return true;
-  const text = `${e.code ?? ''} ${JSON.stringify(e.meta ?? {})} ${e.message ?? ''}`;
-  return text.includes('55P03') || /lock timeout/i.test(text);
-}
 
 /** The API error for each reason registration is refused. */
 const BLOCK_ERRORS: Record<RegisterBlock, () => AppError> = {

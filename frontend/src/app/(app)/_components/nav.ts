@@ -2,6 +2,8 @@ import type { Role, UserType } from '@uniconnect/shared';
 import {
   CalendarDaysIcon,
   CalendarPlusIcon,
+  DropletIcon,
+  HeartPulseIcon,
   HouseIcon,
   IdCardIcon,
   LayoutDashboardIcon,
@@ -50,6 +52,8 @@ export const EVENTS_HREF = '/dashboard/events';
 export const MY_REGISTRATIONS_HREF = '/dashboard/events/my-registrations';
 export const NEW_EVENT_HREF = '/dashboard/events/new';
 export const ANNOUNCEMENTS_HREF = '/dashboard/announcements';
+export const BLOOD_HREF = '/dashboard/blood';
+export const BLOOD_VERIFICATIONS_HREF = '/dashboard/admin/blood-verifications';
 
 /** Roles that belong to a department, and so have a club of their own. */
 const DEPARTMENT_ROLES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
@@ -96,6 +100,10 @@ export const NAV: NavGroup[] = [
     items: [{ label: 'Announcements', href: ANNOUNCEMENTS_HREF, Icon: MegaphoneIcon }],
   },
   {
+    label: 'Blood',
+    items: [{ label: 'Blood donation', href: BLOOD_HREF, Icon: DropletIcon }],
+  },
+  {
     label: 'Admin',
     items: [
       { label: 'Users', href: ADMIN_USERS_HREF, Icon: UsersIcon, roles: ['super_admin'] },
@@ -110,6 +118,12 @@ export const NAV: NavGroup[] = [
         href: DEPT_ADMINS_HREF,
         Icon: ShieldCheckIcon,
         roles: ['super_admin'],
+      },
+      {
+        label: 'Blood verifications',
+        href: BLOOD_VERIFICATIONS_HREF,
+        Icon: HeartPulseIcon,
+        roles: ['dept_admin', 'super_admin'],
       },
     ],
   },
@@ -158,7 +172,7 @@ export interface Capability {
 }
 
 /**
- * What each role will be able to do, from the PRD �5 capability matrix. Shown on the overview:
+ * What each role will be able to do, from the PRD §5 capability matrix. Shown on the overview:
  * built ones link to their page, the rest are plain text marked "Not built yet".
  */
 export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
@@ -169,15 +183,15 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     },
     {
       href: EVENTS_HREF,
-      text: 'Browse events and register, including other departments� public events',
+      text: 'Browse events and register, including other departments’ public events',
     },
-    { text: 'Record your blood donations and answer blood requests' },
+    { text: 'Record your blood donations and answer blood requests', href: BLOOD_HREF },
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
   ],
   faculty: [
     { text: "View your department's club and its announcements", href: ANNOUNCEMENTS_HREF },
     { text: 'Browse events and register', href: EVENTS_HREF },
-    { text: 'Record your blood donations and answer blood requests' },
+    { text: 'Record your blood donations and answer blood requests', href: BLOOD_HREF },
     { text: 'Ask the chatbot about clubs, events and rules you can see' },
   ],
   moderator: [
@@ -190,7 +204,7 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     { text: "Edit your department's club details and fees", href: MY_CLUB_HREF },
     { text: "See and cancel your department's club memberships", href: ADMIN_MEMBERSHIPS_HREF },
     { text: 'Assign committee members', href: MY_CLUB_HREF },
-    { text: 'Verify blood donations in your department' },
+    { text: 'Verify blood donations in your department', href: BLOOD_VERIFICATIONS_HREF },
     { text: 'Manage department events', href: EVENTS_HREF },
     { text: 'Post and pin department announcements', href: ANNOUNCEMENTS_HREF },
   ],
@@ -199,7 +213,7 @@ export const ROLE_CAPABILITIES: Record<Role, Capability[]> = {
     { text: 'See club memberships and payments across departments', href: ADMIN_MEMBERSHIPS_HREF },
     { text: 'Assign department admin terms', href: DEPT_ADMINS_HREF },
     { text: 'Post and pin announcements for any department or club', href: ANNOUNCEMENTS_HREF },
-    { text: 'Verify blood donations in any department' },
+    { text: 'Verify blood donations in any department', href: BLOOD_VERIFICATIONS_HREF },
     { text: 'Read the audit log' },
   ],
 };

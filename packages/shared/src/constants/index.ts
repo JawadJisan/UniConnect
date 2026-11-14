@@ -96,6 +96,14 @@ export const AUDIT_ACTIONS = {
   ANNOUNCEMENT_PINNED: 'ANNOUNCEMENT_PINNED',
   /** is_pinned true → false (FR-ANNOUNCE-004). */
   ANNOUNCEMENT_UNPINNED: 'ANNOUNCEMENT_UNPINNED',
+  /** A dept_admin or super_admin verified a donation; `last_donation_date` synced (FR-BLOOD-002). */
+  BLOOD_DONATION_VERIFIED: 'BLOOD_DONATION_VERIFIED',
+  /** A blood request was marked fulfilled by another user (FR-BLOOD-007; DECISIONS D40). */
+  BLOOD_REQUEST_FULFILLED: 'BLOOD_REQUEST_FULFILLED',
+  /** The requester, their dept_admin or a super_admin cancelled a request (FR-BLOOD-008). */
+  BLOOD_REQUEST_CANCELLED: 'BLOOD_REQUEST_CANCELLED',
+  /** The daily job expired a pending request past `required_by_date` (FR-BLOOD-009; system). */
+  BLOOD_REQUEST_EXPIRED: 'BLOOD_REQUEST_EXPIRED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

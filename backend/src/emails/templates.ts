@@ -176,3 +176,30 @@ ${copy.note}`,
     html: layout(`Hi ${job.name}, ${copy.heading}`, body, copy.action, job.url, copy.note),
   };
 }
+
+type BloodFulfilledJob = Extract<EmailJob, { kind: 'blood-request-fulfilled' }>;
+
+/** FR-BLOOD-007: tells the requester their request was marked fulfilled. layout() escapes it. */
+export function bloodRequestFulfilledTemplate(job: BloodFulfilledJob): Mail {
+  const body = `${job.fulfillerName} marked your request for ${job.bloodGroup} blood for ${job.patientName} at ${job.hospitalName} as fulfilled.`;
+  const note =
+    'Fulfilled requests leave the active list. If you still need blood, post a new request.';
+  return {
+    to: job.to,
+    subject: `Your blood request for ${job.patientName} was fulfilled`,
+    text: `Hi ${job.name},
+
+${body}
+
+View blood requests: ${job.url}
+
+${note}`,
+    html: layout(
+      `Hi ${job.name}, your blood request was fulfilled`,
+      body,
+      'View blood requests',
+      job.url,
+      note,
+    ),
+  };
+}

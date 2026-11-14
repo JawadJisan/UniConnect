@@ -40,6 +40,8 @@ const ATTENDEES: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_adm
 const POSTERS: readonly Role[] = ['moderator', 'dept_admin', 'super_admin'];
 /** Pinning is for dept_admin and super_admin (FR-ANNOUNCE-004). */
 const PINNERS: readonly Role[] = ['dept_admin', 'super_admin'];
+/** Everyone but super_admin records blood donations (FR-BLOOD-001, -003). */
+const DONORS: readonly Role[] = ['student', 'faculty', 'moderator', 'dept_admin'];
 let cseClub = 0;
 
 interface Policy {
@@ -139,6 +141,17 @@ const POLICY: Policy[] = [
   },
   { method: 'delete', path: `/api/v1/announcements/${NO_ROW}`, allowed: POSTERS },
   { method: 'patch', path: `/api/v1/announcements/${NO_ROW}/pin`, allowed: PINNERS },
+  // Blood (D40). Empty bodies are 400s and missing rows 404s once authorization passes; who may
+  // cancel a given request is the service's check, so the route itself is open to every role.
+  { method: 'post', path: '/api/v1/blood/donations', allowed: DONORS, body: {} },
+  { method: 'get', path: '/api/v1/blood/donations/my', allowed: DONORS },
+  { method: 'patch', path: `/api/v1/blood/donations/${NO_ROW}/verify`, allowed: ADMINS },
+  { method: 'get', path: '/api/v1/blood/donors', allowed: ALL },
+  { method: 'post', path: '/api/v1/blood/requests', allowed: ALL, body: {} },
+  { method: 'get', path: '/api/v1/blood/requests', allowed: ALL },
+  { method: 'patch', path: `/api/v1/blood/requests/${NO_ROW}/fulfill`, allowed: ALL },
+  { method: 'patch', path: `/api/v1/blood/requests/${NO_ROW}/cancel`, allowed: ALL },
+  { method: 'get', path: '/api/v1/admin/blood/donations/unverified', allowed: ADMINS },
 ];
 
 const ACCOUNTS: Record<Role, { userType: 'student' | 'faculty' | 'super_admin' }> = {
