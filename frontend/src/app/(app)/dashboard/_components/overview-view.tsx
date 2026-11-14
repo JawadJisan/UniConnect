@@ -9,6 +9,7 @@ import { nameWords } from '@/lib/names';
 import { ROLE_LABEL } from '../../_components/nav';
 import { Panel } from '../../_components/panel';
 import { useProfile } from '../../_components/require-session';
+import { AssistantSection } from './assistant-section';
 import { DeptAdminSection } from './dept-admin-section';
 import { ModeratorSection } from './moderator-section';
 import { PersonalSection } from './personal-section';
@@ -62,8 +63,8 @@ export function greetingName(name: string) {
 
 /**
  * /dashboard (PRD FR-DASH-001–004; DECISIONS D13, D42, D43). The role view first, then the
- * personal view for every student and faculty account. The profile checklist stays at the
- * bottom while anything is missing, for every role.
+ * personal view for every student and faculty account, then the AI assistant (D45). The profile
+ * checklist stays at the bottom while anything is missing, for every role.
  */
 export function OverviewView() {
   const profile = useProfile();
@@ -93,6 +94,8 @@ export function OverviewView() {
             return <PersonalSection key={section} profile={profile} stacked={stacked} />;
         }
       })}
+
+      <AssistantSection profile={profile} />
 
       <ProfilePanel profile={profile} />
     </div>

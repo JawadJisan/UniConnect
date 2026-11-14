@@ -51,6 +51,10 @@ export default defineConfig({
         // The suite signs the seeded accounts in many times per run; the per-account limits
         // (10 sign-ins per 15 minutes) would otherwise answer 429. Integration tests cover them.
         AUTH_EMAIL_LIMITS: 'off',
+        // Gemini is blanked too, so the AI routes answer 503 AI_NOT_CONFIGURED and the suite
+        // mocks their answers. Only `AI_LIVE=1` (e2e/ai.live.spec.ts, run on its own) keeps the
+        // key and model from backend/.env, to check the real model (DECISIONS D45).
+        ...(process.env.AI_LIVE === '1' ? {} : { GEMINI_API_KEY: '', GEMINI_MODEL: '' }),
       },
     },
     {

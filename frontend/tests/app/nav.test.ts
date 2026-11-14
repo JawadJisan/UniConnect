@@ -88,6 +88,7 @@ describe('workspace navigation', () => {
       '/dashboard/admin/dept-admins',
       BLOOD_VERIFY,
       '/dashboard/admin/audit-logs',
+      '/dashboard/admin/chatbot-logs',
     ]);
     expect(activeHref('/dashboard/admin/users/abc')).toBe('/dashboard/admin/users');
     expect(activeHref('/dashboard/memberships/checkout/mock')).toBe('/dashboard/memberships');
