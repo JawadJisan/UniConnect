@@ -285,7 +285,8 @@ describe('GET /dashboard/student, the personal view (FR-DASH-001, D13)', () => {
       blood_group: 'A+',
       requester: { id: ids.ece_student },
     });
-    expect(d.chatbot).toEqual({ enabled: false });
+    // The harness's Gemini stand-in is configured (D44).
+    expect(d.chatbot).toEqual({ enabled: true });
     expect(JSON.stringify(res.body)).not.toMatch(/@dash\.test/);
   });
 
@@ -409,6 +410,7 @@ describe('GET /dashboard/super-admin (FR-DASH-004)', () => {
       'terms',
       'events',
       'blood',
+      'chatbot',
     ]);
     expect(JSON.stringify(res.body)).not.toMatch(/@dash\.test/);
   });
@@ -418,7 +420,7 @@ describe('GET /dashboard/super-admin (FR-DASH-004)', () => {
     try {
       const res = await get('super_admin', '/api/v1/dashboard/super-admin');
       expect(res.status).toBe(200);
-      expect(res.body.data.health.queues).toHaveLength(5);
+      expect(res.body.data.health.queues).toHaveLength(6);
       for (const q of res.body.data.health.queues) {
         expect(q).toMatchObject({ state: 'unavailable', counts: null });
       }

@@ -159,6 +159,11 @@ const POLICY: Policy[] = [
   { method: 'get', path: '/api/v1/dashboard/dept-admin', allowed: ['dept_admin'] },
   { method: 'get', path: '/api/v1/dashboard/super-admin', allowed: SUPER },
   { method: 'get', path: '/api/v1/admin/audit-logs', allowed: SUPER },
+  // AI (D44). Bodies are empty, so allowed roles get 400 after the role check and the shared
+  // rate limit (one request each, well under 10).
+  { method: 'post', path: '/api/v1/chatbot/ask', allowed: ALL },
+  { method: 'post', path: '/api/v1/ai/generate-event-description', allowed: ORGANIZERS },
+  { method: 'get', path: '/api/v1/admin/chatbot/logs', allowed: SUPER },
 ];
 
 const ACCOUNTS: Record<Role, { userType: 'student' | 'faculty' | 'super_admin' }> = {
