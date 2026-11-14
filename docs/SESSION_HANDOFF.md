@@ -7,7 +7,7 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 Phase 8, dashboards and the audit log viewer, on `feat/dashboards`. Both parts are done.
 
 - **Part 1, the backend (D13, D42):** committed this session in four commits (`869a507`..`210d55f`). That commit's handoff, in git history, has the details: the integration hang fix and the personal view's "upcoming" bug.
-- **Part 2, the frontend (D43):** built this session from the plan the user approved on 2026-11-14. **Not committed yet.**
+- **Part 2, the frontend (D43):** built this session from the plan the user approved on 2026-11-14, committed in `2178957` (feature), `1ce8f92` (tests) and `2f2a904` (docs), then merged into `development`.
 
 ## Completed work (Part 2)
 
@@ -53,8 +53,8 @@ Phase 8, dashboards and the audit log viewer, on `feat/dashboards`. Both parts a
 
 ## Exact next task
 
-When the user asks: commit Part 2 on `feat/dashboards` (frontend, tests, docs), then merge into `development`. After that, Phase 9 (chatbot).
+Phase 9 Part 1: the AI chatbot backend plan (FR-AI-001 to 003). The user will check the dashboard charts in `pnpm dev` themselves.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, this file and D43 in `docs/DECISIONS.md`. Review `git diff` on `feat/dashboards`, then commit Phase 8 Part 2 when asked.
+> Read `CLAUDE.md`, this file, PRD §15 and §18, and `docs/DECISIONS.md` (PRD #18, D15, D38), then plan the Phase 9 chatbot backend in plan mode.
