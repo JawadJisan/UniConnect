@@ -7,7 +7,7 @@ import { redis } from '../../lib/redis.js';
 import { validateBody } from '../../middleware/validate.js';
 import { authController } from './auth.controller.js';
 
-// Per IP (req.ip, which `trust proxy` resolves to the client behind the Next.js hop).
+// Per IP: req.ip, the one address middleware/client-ip.ts verified (H1).
 // RedisStore loads its script when constructed, so tests (which mock Redis) skip it entirely.
 const registerLimiter: RequestHandler =
   env.NODE_ENV === 'test'

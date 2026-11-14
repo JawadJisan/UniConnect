@@ -1,5 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
-import { passwordSchema, registerFacultySchema, registerStudentSchema } from '@uniconnect/shared';
+import {
+  nameSchema,
+  passwordSchema,
+  registerFacultySchema,
+  registerStudentSchema,
+} from '@uniconnect/shared';
 
 const validStudent = {
   name: 'Ayesha Rahman',
@@ -78,5 +83,33 @@ describe('registerFacultySchema', () => {
     expect(registerFacultySchema.safeParse({ ...validFaculty, student_id: 'X1' }).success).toBe(
       false,
     );
+  });
+});
+
+// Review L6 (D46): the name reaches emails sent to any typed address, so only name characters.
+describe('nameSchema', () => {
+  it.each([
+    'Ayesha Rahman',
+    'Dr. Karim Hossain',
+    "O'Brien",
+    'Abu-Bakr Siddique',
+    'আয়েশা রহমান',
+    'A.K.M. Fazlul Haque',
+    'Md.',
+  ])('accepts %s', (name) => {
+    expect(nameSchema.safeParse(name).success).toBe(true);
+  });
+
+  it.each([
+    ['a link', 'Visit https://evil.example'],
+    ['a bare domain', 'evil.example.com now'],
+    ['a dotted word', 'Karim.Hossain'],
+    ['markup', '<b>Karim</b>'],
+    ['digits', 'Agent 47'],
+    ['an @', 'karim@example'],
+    ['one letter', 'K'],
+    ['leading punctuation', '-Karim'],
+  ])('rejects %s', (_label, name) => {
+    expect(nameSchema.safeParse(name).success).toBe(false);
   });
 });

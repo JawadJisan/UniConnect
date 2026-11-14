@@ -14,8 +14,42 @@ import { auditService, type AuditEntry } from '../services/audit.service.js';
 import { logger } from './logger.js';
 import { prisma } from './prisma.js';
 import { consume } from './rate-limit.js';
+import { endExpiredSession, sessionTooOld } from './session-age.js';
 
 const DAY = 24 * 60 * 60;
+
+/**
+ * request-password-reset answers no sooner than this (review M4, D46). Better Auth's queries for
+ * a known and an unknown email differ by a database round trip (about 250 ms measured against
+ * Neon from Dhaka), which is enough to tell whether an account exists. Padding every answer to a
+ * floor above the slower path hides it.
+ */
+export const RESET_FLOOR_MS = 2000;
+const resetStarted = new WeakMap<Request, number>();
+
+async function padToFloor(request: Request | undefined): Promise<void> {
+  const started = request && resetStarted.get(request);
+  if (started === undefined) return;
+  const wait = RESET_FLOOR_MS - (performance.now() - started);
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+}
+
+/** Better Auth routes whose JSON body repeats the session token (review I1). */
+const TOKEN_ECHO_PATHS = new Set(['/get-session', '/sign-in/email', '/list-sessions']);
+
+/** Removes `token` from a response body in place: top level, `session`, and list entries. */
+export function stripToken(body: unknown): void {
+  if (!body || typeof body !== 'object' || isAPIError(body)) return;
+  if (Array.isArray(body)) {
+    for (const item of body) stripToken(item);
+    return;
+  }
+  const record = body as Record<string, unknown>;
+  delete record.token;
+  if (record.session && typeof record.session === 'object') {
+    delete (record.session as Record<string, unknown>).token;
+  }
+}
 
 // Better Auth writes sign-in, verify-email and reset-password outside any transaction we can
 // join, so these audit rows are written straight after its write. A failure is logged and
@@ -160,6 +194,10 @@ const options = {
 
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === '/request-password-reset' && ctx.request) {
+        resetStarted.set(ctx.request, performance.now());
+      }
+
       // Better Auth checks only length, so apply the full policy to new passwords.
       if (ctx.path === '/reset-password' || ctx.path === '/change-password') {
         if (!passwordSchema.safeParse(ctx.body?.newPassword).success) {
@@ -177,6 +215,13 @@ const options = {
         ctx.request?.headers.get('cookie')?.includes('session_token')
       ) {
         const current = await getSessionFromCtx(ctx, { disableRefresh: true });
+        if (current && sessionTooOld(current.session.createdAt)) {
+          await endExpiredSession(current.session.id);
+          throw new APIError('UNAUTHORIZED', {
+            code: 'SESSION_EXPIRED',
+            message: 'Your session has expired. Sign in again.',
+          });
+        }
         if (current && (current.user as { isActive?: boolean }).isActive === false) {
           throw new APIError('FORBIDDEN', {
             code: 'ACCOUNT_SUSPENDED',
@@ -212,6 +257,11 @@ const options = {
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
+      // The session token belongs in the httpOnly cookie only (review I1). Over HTTP, drop it
+      // from the JSON of the routes that echo it; server-side auth.api calls keep theirs.
+      if (ctx.request && TOKEN_ECHO_PATHS.has(ctx.path)) stripToken(ctx.context.returned);
+      if (ctx.path === '/request-password-reset') await padToFloor(ctx.request);
+
       if (ctx.path !== '/change-password' || isAPIError(ctx.context.returned)) return;
       const userId = ctx.context.session?.user.id;
       if (!userId) return;
@@ -246,10 +296,11 @@ const options = {
 
   advanced: {
     database: { generateId: false }, // Postgres gen_random_uuid() creates every id.
-    useSecureCookies: env.NODE_ENV === 'production',
+    // `Secure` follows an https BETTER_AUTH_URL, so a deploy can't lose it by NODE_ENV (L3).
+    useSecureCookies: env.SECURE_COOKIES,
     defaultCookieAttributes: { httpOnly: true, sameSite: 'lax' },
-    // Set by the Next.js rewrite. A client-supplied value turns it into a list, which Better
-    // Auth then ignores rather than trusting.
+    // middleware/client-ip.ts overwrites this header with the one verified address before the
+    // Better Auth mount (H1), so whatever the browser sent never reaches here.
     ipAddress: { ipAddressHeaders: ['x-forwarded-for'] },
   },
 } satisfies BetterAuthOptions;

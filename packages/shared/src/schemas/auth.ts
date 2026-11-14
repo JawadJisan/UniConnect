@@ -16,7 +16,21 @@ export const passwordSchema = z
   .regex(/[0-9]/, PASSWORD_REQUIREMENTS_MESSAGE)
   .regex(/[^A-Za-z0-9]/, PASSWORD_REQUIREMENTS_MESSAGE);
 
-export const nameSchema = z.string().trim().min(2).max(100);
+/**
+ * A person's name: letters in any script (Bangla included, with its vowel signs), spaces and
+ * `.'-`, with dots only after a word or an initial. Nothing that reads as a link or markup, because the name appears in emails sent to
+ * any address typed at registration (DECISIONS §7 L6, D46).
+ */
+export const NAME_MESSAGE = "Use letters, spaces and . ' - only.";
+export const nameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Name must be at least 2 characters.')
+  .max(100, 'Name must be at most 100 characters.')
+  .regex(/^[\p{L}\p{M}]+(?:[ .'-]+[\p{L}\p{M}]+)*\.?$/u, NAME_MESSAGE)
+  // Initials ("A.K.M. Fazlul Haque") are fine; a dot right before a word ("example.com") is a
+  // domain that mail clients would turn into a link.
+  .regex(/^(?!.*\.[\p{L}\p{M}]{2})/u, NAME_MESSAGE);
 export const phoneSchema = z
   .string()
   .trim()

@@ -29,7 +29,8 @@ const clubDepartment: DepartmentResolver = (req) =>
 const canEdit = [
   requireRole(['dept_admin', 'super_admin']),
   byId,
-  requireDepartmentScope(clubDepartment),
+  // Every club is listed to everyone, so a 403 reveals nothing (L5).
+  requireDepartmentScope(clubDepartment, { hide: false }),
 ];
 
 clubRouter.get('/', validateRequest('query', clubListQuerySchema), clubController.list);
