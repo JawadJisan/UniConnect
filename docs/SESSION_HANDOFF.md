@@ -4,62 +4,67 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Phase 6 Part 2, the announcements frontend. Approved 2026-11-14, with the `border-border` token in place of `border-white/5`. Then merge `feat/announcements` into `development`.
+Phase 7 Part 1, the blood backend (FR-BLOOD-001–010), on `feat/blood` cut from `development`. Plan and the five open answers approved by the user 2026-11-14 (D14 → PRD rule, PRD #14 consent by donation, PRD #15 no donor emails, own-request fulfill 403, `required_by_date` today allowed).
 
-Next: present the Phase 7 blood backend plan with its open questions, and wait for approval.
+Next: Phase 7 Part 2, the blood frontend plan (plan mode, wait for approval).
 
 ## Completed work
 
-- **Navigation (`nav.ts`):**
-  - New sidebar group **Updates** with Announcements for every role; the ⌘K palette reads the same table.
-  - Overview capability links for announcements.
-- **`hooks/use-announcements.ts`:** feed query plus create, update, delete and pin mutations. Edit and pin write the returned row into cached pages.
-- **`lib/announcements.ts`:** `createScopeOptions` (per role), `scopeLabel`, `canPost`, `canPinRole`.
-- **`lib/format.ts`:** `formatRelative`, `formatDateTime`.
-- **`/dashboard/announcements` (`page.tsx` plus `_components/`):**
-  - feed view with URL filters, `Pager` and every state
-  - `announcement-card.tsx`
-  - `announcement-dialog.tsx` (create and edit, per-role audience, pin checkbox)
-  - `delete-announcement-dialog.tsx`
+- **Shared:**
+  - `packages/shared/src/schemas/blood.ts`: create schemas, list queries and response types; no response type has an email field.
+  - `AUDIT_ACTIONS`: `BLOOD_DONATION_VERIFIED`, `BLOOD_REQUEST_FULFILLED`, `BLOOD_REQUEST_CANCELLED`, `BLOOD_REQUEST_EXPIRED`.
+- **Backend `src/modules/blood/`:**
+  - routes, controller, mapper (`canCancelWith`, `BLOOD_BUSY`), `donation.service`/`.repository`, `request.service`/`.repository`
+  - mounted at `/api/v1/blood` and `/api/v1/admin/blood`
+- **Locks:**
+  - Verify locks the donor's user row, then the donation, and recomputes `last_donation_date` from verified rows in a separate statement.
+  - Fulfill and cancel lock the request row.
+  - A lock wait past 15 s returns 503 `BLOOD_BUSY`.
+- **Jobs and email:**
+  - Expiry: queue `blood`, job `expire-blood-requests`, 00:05 Asia/Dhaka (`src/queues/blood.queue.ts`, `src/workers/blood.worker.ts`, wired into `server.ts`).
+  - `blood-request-fulfilled` email to the requester (fulfiller's name only).
+- **Refactor:** `isLockWait` moved from `events/registration.service.ts` to `src/lib/prisma-errors.ts`.
 - **Tests:**
-  - `tests/lib/announcements.test.ts`
-  - `tests/app/announcements.test.tsx` (feed and dialog, 19 tests)
-  - `nav.test.ts` updated
-  - `e2e/announcements.spec.ts`
-  - `e2e/shell.spec.ts` updated
+  - `backend/tests/blood.test.ts` (36)
+  - `backend/tests/integration/blood.int.test.ts` (26)
+  - 9 new rows in `rbac-matrix.int.test.ts` (new `DONORS` set)
 - **Docs:**
-  - `DESIGN.md` §7 (feed, card, dialog) and §11 (the `SYS.ANNOUNCE.*` tags and uppercase badges)
-  - `DECISIONS.md` D39
-  - `TASKS.md` Phase 6 Done
-  - `CLAUDE.md`
+  - `DECISIONS.md` PRD #14, #15 confirmed, D14 resolved, D40 added
+  - `TASKS.md` Phase 7
+  - `CLAUDE.md` current state
 
 ## Commands executed and results
 
-| Command                                            | Result                                                                                                                                                             |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Frontend unit tests                                | **347/347** (26 suites); first run of the new file had 2 test bugs (sidebar headings counted; the hook's 500 retry outlasted the default wait), fixed in the tests |
-| `pnpm e2e announcements.spec.ts shell.spec.ts`     | shell 5/5; announcements 0/2 (`getByLabel('Department')` also matched the radio cards), fixed with `exact: true`                                                   |
-| `pnpm e2e announcements.spec.ts`                   | **2/2**                                                                                                                                                            |
-| `pnpm typecheck`, `pnpm lint`, `pnpm format:check` | pass                                                                                                                                                               |
+| Command                                                      | Result                                                                                                                      |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm --filter @uniconnect/backend test tests/blood.test.ts` | 36/36                                                                                                                       |
+| `test:integration -- blood` (first run)                      | **26/26**                                                                                                                   |
+| `test:integration -- rbac-matrix event-registrations`        | **349/349** (2 suites)                                                                                                      |
+| `pnpm typecheck`                                             | First failed: optional text fields typed as required keys. Fixed in `blood.ts` (`.transform` before `.optional`), then pass |
+| `pnpm --filter @uniconnect/backend test`                     | **324/324** (16 suites), after the fix                                                                                      |
+| `test:integration -- blood` (rerun after the schema fix)     | **26/26**                                                                                                                   |
+| `pnpm lint`, `pnpm format:check`                             | pass                                                                                                                        |
 
 ## Not covered
 
-- **Full E2E suite:** not rerun. Only the announcements and shell specs ran.
-- **Full backend integration suite:** not rerun this phase.
-- **Cross-department visibility in E2E:** checked with an ECE post that the CSE student must not see. All E2E users are in CSE.
+- **Full backend integration suite:** not rerun. Only the blood, RBAC matrix and event-registration suites ran.
+- **Frontend:** no frontend code. Frontend tests and E2E were not run; the frontend wasn't touched.
+- **`BLOOD_BUSY` (503):** no test reaches it. The races finish well inside the 15 s lock timeout.
+- **BullMQ schedule registration:** the expiry job's schedule (`scheduleBloodJobs`) is not exercised in tests. The service it calls is.
+- **OpenAPI entries:** none (task 1c).
 
 ## Exact next task
 
-Phase 7 Part 1, the blood backend (FR-BLOOD-001–010). Present the plan and the open questions:
+Phase 7 Part 2: the blood frontend plan, in plan mode, as specified in the user's 2026-11-14 message:
 
-- D14 phone visibility
-- consent
-- fulfilling your own request
-- `required_by_date` today
-- PRD #15
+- `/dashboard/blood` with tabs for active requests, the donor directory and my donations
+- dialogs for new request, record donation and fulfill confirm
+- the admin verification queue
+- sidebar navigation
+- `SYS.BLOOD.*` labels and blood-group badges
 
-Wait for approval before writing code.
+Ask: "Shall I proceed with generating the frontend code for the Blood Donation & Requests module?"
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, this file, D14 and PRD #14–#15 in `docs/DECISIONS.md`, and PRD §14. Answer the blood open questions, then build `src/modules/blood/` on `feat/blood` from `development`.
+> Read `CLAUDE.md`, this file, D40 in `docs/DECISIONS.md`, `docs/DESIGN.md` and the announcements pages (`frontend/src/app/(app)/dashboard/announcements/`) as the closest pattern. Then present the blood frontend plan and wait for approval.
