@@ -152,6 +152,13 @@ const POLICY: Policy[] = [
   { method: 'patch', path: `/api/v1/blood/requests/${NO_ROW}/fulfill`, allowed: ALL },
   { method: 'patch', path: `/api/v1/blood/requests/${NO_ROW}/cancel`, allowed: ALL },
   { method: 'get', path: '/api/v1/admin/blood/donations/unverified', allowed: ADMINS },
+  // Dashboards (D13, D42). The personal view is for every student and faculty account, whatever
+  // its role; the matrix moderator holds no seat, so their view answers 404 after the role check.
+  { method: 'get', path: '/api/v1/dashboard/student', allowed: DONORS },
+  { method: 'get', path: '/api/v1/dashboard/moderator', allowed: ['moderator'] },
+  { method: 'get', path: '/api/v1/dashboard/dept-admin', allowed: ['dept_admin'] },
+  { method: 'get', path: '/api/v1/dashboard/super-admin', allowed: SUPER },
+  { method: 'get', path: '/api/v1/admin/audit-logs', allowed: SUPER },
 ];
 
 const ACCOUNTS: Record<Role, { userType: 'student' | 'faculty' | 'super_admin' }> = {

@@ -73,6 +73,13 @@ export const emailQueue = { down: false };
 type EventJobKind = 'published' | 'cancelled' | 'reminder';
 /** Event fan-out jobs queued by publish, cancel and the reminder run (DECISIONS D36). */
 export const eventJobs: { eventId: number; kind: EventJobKind }[] = [];
+/**
+ * Set `down` to make every queue report `unavailable`, as a Redis outage does. The real
+ * module would build BullMQ queues on FakeRedis, whose counts never settle and whose handles
+ * keep Jest from exiting, so the harness stands in for it (DECISIONS D42).
+ */
+export const queueHealthState = { down: false };
+const QUEUE_NAMES = ['email', 'memberships', 'terms', 'events', 'blood'] as const;
 
 jest.unstable_mockModule('../../src/lib/redis.js', () => ({
   redis: fakeRedis,
@@ -95,6 +102,20 @@ jest.unstable_mockModule('../../src/queues/event.queue.js', () => ({
   },
   scheduleEventJobs: async () => {},
   closeEventQueue: async () => {},
+}));
+jest.unstable_mockModule('../../src/lib/queue-health.js', () => ({
+  QUEUE_NAMES,
+  queueHealth: async () =>
+    QUEUE_NAMES.map((name) =>
+      queueHealthState.down
+        ? { name, state: 'unavailable' as const, counts: null }
+        : {
+            name,
+            state: 'ok' as const,
+            counts: { waiting: 0, active: 0, delayed: 0, failed: 0 },
+          },
+    ),
+  closeQueueHealth: async () => {},
 }));
 
 export async function loadHarness() {
@@ -121,6 +142,7 @@ export async function resetDatabase({ prisma }: Harness) {
   sentEmails.length = 0;
   eventJobs.length = 0;
   emailQueue.down = false;
+  queueHealthState.down = false;
 }
 
 /** The V1 departments, as prisma/seed.ts writes them. Upserted so tests need no seed run. */
