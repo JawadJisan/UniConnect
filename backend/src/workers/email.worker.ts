@@ -1,8 +1,15 @@
 import { Worker } from 'bullmq';
-import { resetPasswordTemplate, verifyEmailTemplate } from '../emails/templates.js';
+import {
+  bloodRequestFulfilledTemplate,
+  deptAdminAssignedTemplate,
+  eventTemplate,
+  membershipReceiptTemplate,
+  resetPasswordTemplate,
+  verifyEmailTemplate,
+} from '../emails/templates.js';
 import { logger } from '../lib/logger.js';
 import { sendMail } from '../lib/mailer.js';
-import { createRedis } from '../lib/redis.js';
+import { workerOptions } from './options.js';
 import { EMAIL_QUEUE, type EmailJob } from '../queues/email.queue.js';
 
 /** Starts the email worker on its own Redis connection, as BullMQ requires. */
@@ -10,14 +17,26 @@ export function startEmailWorker(): Worker<EmailJob> {
   const worker = new Worker<EmailJob>(
     EMAIL_QUEUE,
     async (job) => {
-      const { kind, to, name, url } = job.data;
-      const mail =
-        kind === 'verify-email'
-          ? verifyEmailTemplate(to, name, url)
-          : resetPasswordTemplate(to, name, url);
-      await sendMail(mail);
+      const data = job.data;
+      switch (data.kind) {
+        case 'verify-email':
+          return sendMail(verifyEmailTemplate(data.to, data.name, data.url));
+        case 'reset-password':
+          return sendMail(resetPasswordTemplate(data.to, data.name, data.url));
+        case 'membership-receipt':
+          return sendMail(membershipReceiptTemplate(data));
+        case 'dept-admin-assigned':
+          return sendMail(deptAdminAssignedTemplate(data));
+        case 'event-published':
+        case 'event-cancelled':
+        case 'event-registered':
+        case 'event-reminder':
+          return sendMail(eventTemplate(data));
+        case 'blood-request-fulfilled':
+          return sendMail(bloodRequestFulfilledTemplate(data));
+      }
     },
-    { connection: createRedis(), concurrency: 5 },
+    workerOptions(5),
   );
 
   // Never log job data: it contains the token link.

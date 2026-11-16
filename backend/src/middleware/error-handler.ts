@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { Prisma } from '../generated/prisma/client.js';
+import { env } from '../config/env.js';
 import { AppError } from '../lib/http-error.js';
 import { logger } from '../lib/logger.js';
 
@@ -36,9 +37,35 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
 
-  logger.error(err instanceof Error ? (err.stack ?? err.message) : String(err));
+  logger.error(describeError(err, env.NODE_ENV === 'development'));
   res.status(500).json({
     success: false,
-    error: { code: 'INTERNAL_ERROR', message: 'Something went wrong.' },
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: 'Something went wrong.',
+      // Quote this when reporting the problem; the same id is on the server's log line.
+      request_id: res.getHeader('x-request-id'),
+    },
   });
 };
+
+/**
+ * What an unexpected error puts in the log (DECISIONS §7 I6). A Prisma error is named by its
+ * class and code only: its message can quote the query's values (emails, phone numbers). The
+ * stack is logged only in development, where it helps and the data is local.
+ */
+export function describeError(err: unknown, withStack: boolean): string {
+  if (
+    err instanceof Prisma.PrismaClientKnownRequestError ||
+    err instanceof Prisma.PrismaClientUnknownRequestError ||
+    err instanceof Prisma.PrismaClientValidationError ||
+    err instanceof Prisma.PrismaClientInitializationError ||
+    err instanceof Prisma.PrismaClientRustPanicError
+  ) {
+    const code = 'code' in err && err.code ? ` ${String(err.code)}` : '';
+    return `${err.name}${code}`;
+  }
+  if (err instanceof Error)
+    return withStack && err.stack ? err.stack : `${err.name}: ${err.message}`;
+  return 'Non-Error thrown';
+}

@@ -1,4 +1,5 @@
 import type { Mail } from '../lib/mailer.js';
+import type { EmailJob } from '../queues/email.queue.js';
 
 const escape = (value: string) =>
   value.replace(
@@ -45,6 +46,159 @@ export function resetPasswordTemplate(to: string, name: string, url: string): Ma
       'Use the button below to choose a new password. Signing in again will be required on every device.',
       'Reset password',
       url,
+      note,
+    ),
+  };
+}
+
+type ReceiptJob = Extract<EmailJob, { kind: 'membership-receipt' }>;
+
+/** Payment receipt. Amounts arrive as strings ("500.00") and are printed as-is. */
+export function membershipReceiptTemplate(job: ReceiptJob): Mail {
+  const period = job.type === 'yearly' ? 'Yearly' : 'Monthly';
+  const when =
+    job.status === 'scheduled'
+      ? `Your renewal starts on ${job.startDate}, the day after your current membership ends, and runs until ${job.endDate}.`
+      : `Your membership is active from ${job.startDate} until ${job.endDate}.`;
+  const lines = [
+    `Club: ${job.clubName}`,
+    `Plan: ${period}`,
+    `Amount paid: ${job.currency} ${job.amount}`,
+    `Transaction ID: ${job.transactionId}`,
+  ];
+  const note = 'Keep this email as your receipt. Memberships are not refundable.';
+  return {
+    to: job.to,
+    subject: `Payment received: ${job.clubName} membership`,
+    text: `Hi ${job.name},\n\nThank you for your payment. ${when}\n\n${lines.join('\n')}\n\nView your memberships: ${job.url}\n\n${note}`,
+    html: layout(
+      `Hi ${job.name}, your payment is confirmed`,
+      `${when} ${lines.join(' · ')}`,
+      'View my memberships',
+      job.url,
+      note,
+    ),
+  };
+}
+
+type DeptAdminJob = Extract<EmailJob, { kind: 'dept-admin-assigned' }>;
+
+/** Sent after a dept admin term is committed (PRD FR-ADMIN-001). */
+export function deptAdminAssignedTemplate(job: DeptAdminJob): Mail {
+  const body = `You are now the department admin of ${job.departmentName}, from ${job.startDate} until ${job.endDate}.`;
+  const note = 'If you think this is a mistake, contact the university super admin.';
+  return {
+    to: job.to,
+    subject: `You are the ${job.departmentName} department admin`,
+    text: `Hi ${job.name},
+
+${body}
+
+Open your dashboard: ${job.url}
+
+${note}`,
+    html: layout(
+      `Hi ${job.name}, you are a department admin`,
+      body,
+      'Open dashboard',
+      job.url,
+      note,
+    ),
+  };
+}
+
+type EventJob = Extract<
+  EmailJob,
+  { kind: 'event-published' | 'event-cancelled' | 'event-registered' | 'event-reminder' }
+>;
+
+/** "Tue, 1 Dec 2026, 4:00 pm" in Asia/Dhaka, the university's time zone. */
+export function formatDhakaDateTime(iso: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Dhaka',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(new Date(iso));
+}
+
+const EVENT_COPY = {
+  'event-published': {
+    subject: (t: string) => `New event: ${t}`,
+    heading: 'there is a new event for you',
+    lead: (j: EventJob) => `${j.clubName} published "${j.title}".`,
+    action: 'View event',
+    note: 'You get this because the event is open to your department.',
+  },
+  'event-cancelled': {
+    subject: (t: string) => `Cancelled: ${t}`,
+    heading: 'an event you registered for was cancelled',
+    lead: (j: EventJob) => `${j.clubName} cancelled "${j.title}".`,
+    action: 'View event',
+    note: 'Your registration needs no action.',
+  },
+  'event-registered': {
+    subject: (t: string) => `You are registered: ${t}`,
+    heading: 'you are registered',
+    lead: (j: EventJob) => `You are registered for "${j.title}" by ${j.clubName}.`,
+    action: 'View event',
+    note: 'You can cancel your registration from the event page before it starts.',
+  },
+  'event-reminder': {
+    // PRD §22 email table: "Reminder: {event_title} is tomorrow".
+    subject: (t: string) => `Reminder: ${t} is tomorrow`,
+    heading: 'your event is tomorrow',
+    lead: (j: EventJob) => `"${j.title}" by ${j.clubName} is coming up.`,
+    action: 'View event',
+    note: "Can't make it? Cancel your registration from the event page so someone else can take the seat.",
+  },
+} as const;
+
+/** FR-EVENT-003, -005, -007 and the reminder. Event text is the organizers'; layout() escapes it. */
+export function eventTemplate(job: EventJob): Mail {
+  const copy = EVENT_COPY[job.kind];
+  const when = formatDhakaDateTime(job.startDate);
+  const body = `${copy.lead(job)} Starts ${when}${job.venue ? ` at ${job.venue}` : ''}.`;
+  return {
+    to: job.to,
+    subject: copy.subject(job.title),
+    text: `Hi ${job.name},
+
+${body}
+
+${copy.action}: ${job.url}
+
+${copy.note}`,
+    html: layout(`Hi ${job.name}, ${copy.heading}`, body, copy.action, job.url, copy.note),
+  };
+}
+
+type BloodFulfilledJob = Extract<EmailJob, { kind: 'blood-request-fulfilled' }>;
+
+/** FR-BLOOD-007: tells the requester their request was marked fulfilled. layout() escapes it. */
+export function bloodRequestFulfilledTemplate(job: BloodFulfilledJob): Mail {
+  const body = `${job.fulfillerName} marked your request for ${job.bloodGroup} blood for ${job.patientName} at ${job.hospitalName} as fulfilled.`;
+  const note =
+    'Fulfilled requests leave the active list. If you still need blood, post a new request.';
+  return {
+    to: job.to,
+    subject: `Your blood request for ${job.patientName} was fulfilled`,
+    text: `Hi ${job.name},
+
+${body}
+
+View blood requests: ${job.url}
+
+${note}`,
+    html: layout(
+      `Hi ${job.name}, your blood request was fulfilled`,
+      body,
+      'View blood requests',
+      job.url,
       note,
     ),
   };

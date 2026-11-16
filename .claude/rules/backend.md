@@ -28,10 +28,11 @@ paths:
 - A unique-index race surfaces as Prisma `P2002`; map known index names to the PRD's specific 409 messages rather than the generic one.
 - Redis: one `createRedis()` connection per BullMQ worker. Log `err.message`, never an ioredis error object.
 - SSLCommerz: trust only the Order Validation API response; the IPN handler is idempotent (`WHERE payment_status = 'pending'`).
+- Capacity checks (event registration; DECISIONS D36): lock the parent row with `SELECT … FOR UPDATE` in its own statement, then count in a **separate, later** statement. A `FOR UPDATE` that waited re-reads only the locked row; subqueries and joins in the same statement keep their pre-wait snapshot, which overbooked 10 registrations into 3 seats. Lock order is parent → child.
+- Under such a lock, run `SET LOCAL lock_timeout = '15s'` with transaction options `{ maxWait: 15_000, timeout: 25_000 }`, and map a lock wait (`55P03`, Prisma `P2028`) to 503 `EVENT_BUSY` rather than a 500.
 - Gemini: the model comes from `GEMINI_MODEL`. External services (SSLCommerz, Gemini, Cloudinary, SMTP) sit behind small client modules that tests can mock.
 
 ## Open, decide before first use (`docs/DECISIONS.md` §5)
 
 - **D9** list response shape and pagination. Proposed: `{ success, data, meta: { page, limit, total } }`, `limit` default 20, max 100.
 - **D12** role-change concurrency. Proposed: every term-changing transaction locks the user row (`SELECT … FOR UPDATE`) before `roleService.recompute`.
-- Capacity and "one open row" checks (event registration, membership checkout) lock the parent row before counting and inserting; the exact pattern is settled with the first such endpoint.

@@ -1,4 +1,4 @@
-import { describePassword } from '@/app/(auth)/_components/password-hint';
+import { describePassword } from '@/components/password/password-hint';
 
 describe('describePassword', () => {
   it.each([

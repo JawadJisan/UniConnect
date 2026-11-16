@@ -408,7 +408,7 @@ super_admin > dept_admin > moderator > faculty / student
 1. Session lifetime: 7 days, extended by activity at most once per day (Better Auth `expiresIn` / `updateAge`).
 2. The session cookie is `httpOnly`, `Secure` in production, `SameSite=Lax`.
 3. The client simply sends the cookie; an expired session returns 401 and the client redirects to `/login`.
-4. Idle timeout, "remember me" and "log out of all devices" are decided in Section 25 (decision 19). V1 default: 7-day sliding session; "log out of all devices" is available through revoking the user's sessions.
+4. Idle timeout, "remember me" and "log out of all devices" are decided in Section 25 (decision 19). V1 default: 7-day sliding session; "log out of all devices" is the profile's "Sign out other devices" action (Better Auth `/api/auth/revoke-other-sessions`; DECISIONS D30).
 
 ---
 
@@ -558,10 +558,13 @@ router.patch('/clubs/:id', requireRole(['dept_admin', 'super_admin']), requireDe
 - `GET /api/v1/admin/users/:id` — get user detail
 - `PATCH /api/v1/admin/users/:id/status` — suspend / activate (`is_active`). Suspending also revokes all of the user's sessions.
 - `POST /api/v1/admin/users/:id/recompute-role` — re-run `RoleService.recompute` for one user (repair tool, idempotent, audited)
+- `PATCH /api/v1/admin/users/:id` — correct a user's details when assisting (FR-USER-002): name, phone, blood group, department, and academic fields for students. A department change is refused (409) while the user holds a current term or an active/pending membership (DECISIONS D29)
 
 **Auth:** `super_admin` only
 
-**Pagination:** `?page=1&limit=20&sort=created_at&order=desc`
+**Pagination:** `?page=1&limit=20&sort=created_at&order=desc`, plus `?search=` on name or email. Response `{ success, data, meta: { page, limit, total, total_pages } }` (DECISIONS D9, D28).
+
+Super admins cannot suspend or edit themselves or another super admin through these routes.
 
 > **Removed in V1.2:** `PATCH /admin/users/:id/role` (direct role override). The role is derived from `user_type` and active terms; a manual override would be silently reverted at the next recompute. To change someone's role, change the committee or admin term that grants it.
 
@@ -600,12 +603,14 @@ Shortcut — resolves club by `User.department_id`. For `super_admin` (no depart
 **Auth:** `dept_admin` (own dept), `super_admin`
 **Tables:** `Club`
 
-**Editable Fields:** `name`, `description`, `logo_url`, `membership_fee_monthly`, `membership_fee_yearly`
+**Editable Fields:** `name`, `description`, `membership_fee_monthly`, `membership_fee_yearly` (JSON; fees as 2-decimal amounts, `null` clears)
+
+**Logo:** `PATCH /api/v1/clubs/:id/logo`, multipart field `logo`, same auth. The logo is never set from a client-supplied URL (DECISIONS D31).
 
 **System Actions:**
 1. Verify requesting user is dept_admin of the club's department (or super_admin).
-2. Upload new logo if provided (Cloudinary).
-3. Update fields. Log in `AuditLog` (old and new fee values included).
+2. Upload new logo through the `/logo` route (Cloudinary).
+3. Update fields. Log in `AuditLog` (old and new fee values included): `CLUB_UPDATED`, or `CLUB_LOGO_UPDATED` for the logo.
 
 ---
 
@@ -654,7 +659,8 @@ Returns all clubs with department name, logo, and membership fee.
 - Step 1: read `tran_id` and `val_id` from the IPN. Load the `PaymentTransaction` by `transaction_id`.
 - Step 2: call the SSLCommerz **Order Validation API** with `val_id` and the store credentials. Accept the payment only if the validation status is `VALID` or `VALIDATED` **and** the returned `tran_id`, amount and currency match the stored row.
 - Step 3 (success), in one transaction and **idempotent**: `UPDATE payment_transactions SET payment_status = 'completed', val_id, bank_tran_id, validated_at, payment_gateway_response, payment_method WHERE transaction_id = $1 AND payment_status = 'pending'`. If a row was updated: set `ClubMembership.status = 'active'` and recompute its `start_date` / `end_date` from the activation day, write `MEMBERSHIP_PURCHASED` and `PAYMENT_COMPLETED` audit entries (actor = system), and queue the receipt email. If zero rows were updated the IPN is a duplicate: return 200 with no side effects.
-- Step 4 (failure or mismatch): set `payment_status = 'failed'`, set the `pending` membership to `cancelled`, write `PAYMENT_FAILED`.
+- Step 4 (failure or mismatch): set `payment_status = 'failed'`, set the `pending` membership to `cancelled`, write `PAYMENT_FAILED`. Only a validation answer whose `tran_id` matches the stored row can fail a payment; an IPN with no `val_id`, or one whose `val_id` belongs to another transaction, changes nothing (DECISIONS D32).
+- Built with a mock gateway until the merchant account exists (`PAYMENT_GATEWAY=mock`, refused in production; DECISIONS D32).
 - The browser `success_url` / `fail_url` pages are **display only**; they never grant membership.
 
 **Constraint:** One active membership per `(user_id, club_id)`, enforced by a partial unique index. Renewal only allowed after current expires or is cancelled (see FR-MEM-002 for the early-renewal exception).
@@ -667,7 +673,7 @@ Returns all clubs with department name, logo, and membership fee.
 **Endpoint:** `POST /api/v1/memberships/:id/renew`
 **Auth:** any authenticated user with `user_type = 'student'`
 
-Creates a **new** `ClubMembership` row (does not overwrite old) with `status = 'pending'` and follows the same payment flow as FR-MEM-001. On activation, `start_date = old end_date + 1 day` when the previous membership is still active, otherwise today. New payment transaction required. To keep the one-active-row rule, an early renewal is activated only when the previous row has expired (the daily job marks it `expired`); until then the new row stays `pending` and the student is told the renewal starts on the old end date.
+Creates a **new** `ClubMembership` row (does not overwrite old) with `status = 'pending'` and follows the same payment flow as FR-MEM-001. Only an `active` or `expired` membership can be renewed (409 otherwise). On activation, `start_date = old end_date + 1 day` when the previous membership is still active, otherwise today. New payment transaction required. To keep the one-active-row rule, a paid early renewal becomes **`scheduled`** (ADR 0001, DECISIONS D11) and the daily `expire-memberships` job makes it `active` once the previous row has expired. One `pending` or `scheduled` row per user per club (partial unique index); a second renewal while one is scheduled is a 409.
 
 ---
 
@@ -677,7 +683,7 @@ Creates a **new** `ClubMembership` row (does not overwrite old) with `status = '
 **Endpoint:** `PATCH /api/v1/memberships/:id/cancel`
 **Auth:** owner (`user_type = student`), `dept_admin` (dept), `super_admin` (any)
 
-Sets `ClubMembership.status = 'cancelled'`. No refund in V1. Writes `MEMBERSHIP_CANCELLED`.
+Sets `ClubMembership.status = 'cancelled'` for a `pending`, `scheduled` or `active` row (409 otherwise); a `pending` row's payment becomes `failed`. No refund in V1. Writes `MEMBERSHIP_CANCELLED`. Anyone else (another student, faculty, another department's admin) gets 404, so a membership's existence is not revealed (DECISIONS D32).
 
 ---
 
@@ -687,7 +693,7 @@ Sets `ClubMembership.status = 'cancelled'`. No refund in V1. Writes `MEMBERSHIP_
 **Endpoint:** `GET /api/v1/memberships/my`
 **Auth:** any authenticated user with `user_type = 'student'`
 
-Returns all memberships (pending, active, expired, cancelled) for the authenticated student.
+Returns all memberships (pending, scheduled, active, expired, cancelled) for the authenticated student.
 
 ---
 
@@ -1377,7 +1383,10 @@ Calls Gemini to generate a 2–3 sentence engaging event description. Returns su
 | `LOGIN` | Successful login |
 | `PASSWORD_CHANGED` | Password change or reset |
 | `ROLE_CHANGED` | Any `User.role` change made by `RoleService.recompute` |
+| `PROFILE_UPDATED` | Own profile edited through `PATCH /users/me` (changed fields only; DECISIONS D24) |
+| `AVATAR_UPDATED` | Own avatar replaced (DECISIONS D24) |
 | `ASSIGN_COMMITTEE_MEMBER` | New `ClubCommitteeMember` inserted |
+| `COMMITTEE_MEMBER_UPDATED` | Committee position or years edited (DECISIONS D34) |
 | `END_COMMITTEE_TERM` | `is_current` set to false |
 | `ASSIGN_DEPT_ADMIN` | New `DepartmentAdminTerm` inserted |
 | `END_DEPT_ADMIN_TERM` | `is_current` set to false |
@@ -1385,14 +1394,23 @@ Calls Gemini to generate a 2–3 sentence engaging event description. Returns su
 | `MEMBERSHIP_PURCHASED` | `ClubMembership` becomes `active` after validated payment |
 | `MEMBERSHIP_CANCELLED` | `ClubMembership` cancelled |
 | `PAYMENT_COMPLETED` | Validation API confirmed a payment (actor = system) |
-| `PAYMENT_FAILED` | Payment failed or validation mismatch (actor = system) |
+| `PAYMENT_FAILED` | Payment failed or validation mismatch, or the gateway could not open a session (actor = system) |
+| `MEMBERSHIP_SCHEDULED` | A paid early renewal became `scheduled` (actor = system; ADR 0001) |
+| `MEMBERSHIP_ACTIVATED` | The daily job started a `scheduled` renewal (actor = system) |
+| `MEMBERSHIP_EXPIRED` | The daily job expired an `active` membership past its end date (actor = system) |
+| `CHECKOUT_EXPIRED` | An unpaid checkout older than 30 minutes was cancelled (stale job, or replaced by a new checkout) |
 | `CLUB_UPDATED` | Club details or fees changed |
+| `CLUB_LOGO_UPDATED` | Club logo replaced through `PATCH /clubs/:id/logo` |
 | `EVENT_CREATED` | New event inserted |
 | `EVENT_PUBLISHED` | Event `status → published` |
 | `EVENT_CANCELLED` | Event `status → cancelled` |
+| `EVENT_UPDATED` | Event fields or poster changed (changed fields only; DECISIONS D36) |
+| `EVENT_COMPLETED` | Event `status → completed`; remaining registrations marked `no_show` (DECISIONS D36) |
+| `EVENT_CHECK_IN` | An organizer checked a registrant in (DECISIONS D36) |
 | `BLOOD_DONATION_VERIFIED` | `BloodDonation.verified → true` |
 | `USER_SUSPENDED` | `User.is_active → false` |
 | `USER_ACTIVATED` | `User.is_active → true` |
+| `USER_UPDATED_BY_ADMIN` | A super admin edited another user through `PATCH /admin/users/:id` (changed fields only; DECISIONS D29) |
 
 **Log Entry:**
 
@@ -1510,10 +1528,12 @@ Business endpoints are prefixed with `/api/v1`. Authentication is handled by Bet
 | GET | `/users/me` | Session | View own profile |
 | PATCH | `/users/me` | Session | Update own profile |
 | PATCH | `/users/me/avatar` | Session | Upload avatar |
+| GET | `/users/me/sessions` | Session | Count of other signed-in devices (FR-AUTH-005.4, DECISIONS D30) |
 | GET | `/admin/users` | super_admin | List all users |
 | GET | `/admin/users/:id` | super_admin | User detail |
 | PATCH | `/admin/users/:id/status` | super_admin | Suspend / activate |
 | POST | `/admin/users/:id/recompute-role` | super_admin | Recompute effective role (repair) |
+| PATCH | `/admin/users/:id` | super_admin | Correct a user's details (assisting) |
 
 ### Clubs
 
@@ -1523,6 +1543,7 @@ Business endpoints are prefixed with `/api/v1`. Authentication is handled by Bet
 | GET | `/clubs/my-club` | Session | Own dept's club |
 | GET | `/clubs/:id` | Session | Club detail |
 | PATCH | `/clubs/:id` | dept_admin, super_admin | Edit club |
+| PATCH | `/clubs/:id/logo` | dept_admin, super_admin | Upload club logo |
 
 ### Memberships
 

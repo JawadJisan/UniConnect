@@ -36,7 +36,7 @@ One platform that links department clubs, cross-department events and an emergen
 - **Accounts:** self-registration with email verification, no approval step. This is the PRD default, with open decisions still pending in `docs/DECISIONS.md`.
 - **Roles:** exactly five: `student`, `faculty`, `moderator`, `dept_admin`, `super_admin`.
 - **Language and locale:** English, `Asia/Dhaka`.
-- **Status:** the database schema, the authentication API (registration, sign-in, email verification, password reset) and the public landing page exist. Club, event, blood and chatbot features and all signed-in pages aren't built yet.
+- **Status:** the database schema, the authentication API and pages (registration, sign-in, email verification, password reset), the public landing page, the signed-in workspace shell for every role, an account overview and profile management (details, academic fields, avatar, password) exist. Club, event, blood and chatbot features aren't built yet.
 
 ## Evidence on Hand
 

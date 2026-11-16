@@ -256,10 +256,11 @@ CREATE TABLE clubs (
 | `type` | VARCHAR(10) | CHECK IN ('monthly','yearly'), NOT NULL | Membership plan |
 | `start_date` | DATE | NOT NULL | Recomputed on activation |
 | `end_date` | DATE | NOT NULL, CHECK > start_date | |
-| `status` | VARCHAR(10) | NOT NULL, DEFAULT 'pending' CHECK IN ('pending','active','expired','cancelled') | |
+| `status` | VARCHAR(10) | NOT NULL, DEFAULT 'pending' CHECK IN ('pending','scheduled','active','expired','cancelled') | `pending` = checkout not paid; `scheduled` = paid renewal waiting for the previous membership to end (ADR 0001) |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | |
 | `updated_at` | TIMESTAMP | DEFAULT NOW() | |
 | UNIQUE (partial) | `(user_id, club_id) WHERE status = 'active'` | | One active membership per user per club |
+| UNIQUE (partial) | `(user_id, club_id) WHERE status IN ('pending','scheduled')` | | One open checkout or queued renewal per user per club (ADR 0001) |
 
 ```sql
 CREATE TABLE club_memberships (
@@ -270,13 +271,15 @@ CREATE TABLE club_memberships (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     status VARCHAR(10) NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending','active','expired','cancelled')),
+        CHECK (status IN ('pending','scheduled','active','expired','cancelled')),
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     CONSTRAINT membership_dates_valid CHECK (end_date > start_date)
 );
 -- CREATE UNIQUE INDEX one_active_membership_per_user_club
 --   ON club_memberships (user_id, club_id) WHERE status = 'active';
+-- CREATE UNIQUE INDEX one_open_membership_per_user_club
+--   ON club_memberships (user_id, club_id) WHERE status IN ('pending','scheduled');
 ```
 
 **Relationships:**
@@ -944,6 +947,11 @@ CREATE UNIQUE INDEX users_student_id_per_dept
 
 CREATE UNIQUE INDEX one_active_membership_per_user_club
   ON club_memberships (user_id, club_id) WHERE status = 'active';
+
+-- Added by migration 20261111171335_membership_scheduled_status (ADR 0001), which also
+-- re-creates membership_status_valid with 'scheduled'.
+CREATE UNIQUE INDEX one_open_membership_per_user_club
+  ON club_memberships (user_id, club_id) WHERE status IN ('pending', 'scheduled');
 
 CREATE UNIQUE INDEX one_current_position_per_user_club
   ON club_committee_members (user_id, club_id) WHERE is_current = true;

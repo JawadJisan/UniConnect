@@ -1,4 +1,5 @@
-// Seeds the V1 departments and the super admin. Safe to run more than once.
+// Seeds the V1 departments, one club per department (D18) and the super admin. Safe to run
+// more than once.
 // Run with `pnpm db:seed` (prisma db seed). Credentials come from backend/.env.
 import { AUDIT_ACTIONS, emailSchema, nameSchema, passwordSchema } from '@uniconnect/shared';
 import { z } from 'zod';
@@ -23,9 +24,20 @@ const seedEnv = z
 
 async function main() {
   for (const dept of DEPARTMENTS) {
-    await prisma.department.upsert({ where: { name: dept.name }, update: {}, create: dept });
+    const { id } = await prisma.department.upsert({
+      where: { name: dept.name },
+      update: {},
+      create: dept,
+    });
+    // One club per department (DECISIONS D18, issue 16). `update: {}` keeps any edits a
+    // dept admin made; fees stay null until the operator sets them.
+    await prisma.club.upsert({
+      where: { departmentId: id },
+      update: {},
+      create: { departmentId: id, name: `${dept.name} Club`, description: dept.description },
+    });
   }
-  console.log(`departments: ${DEPARTMENTS.map((d) => d.name).join(', ')}`);
+  console.log(`departments and clubs: ${DEPARTMENTS.map((d) => d.name).join(', ')}`);
 
   const email = seedEnv.SEED_SUPER_ADMIN_EMAIL;
   if (await userRepository.emailTaken(prisma, email)) {

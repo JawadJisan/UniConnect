@@ -17,5 +17,6 @@ An ADR records one decision with lasting consequences: what was decided, why, an
 
 ## Index
 
-| #   | Title | Status | Date |
-| --- | ----- | ------ | ---- |
+| #                                 | Title                                                         | Status   | Date       |
+| --------------------------------- | ------------------------------------------------------------- | -------- | ---------- |
+| [0001](0001-membership-states.md) | Membership states: `scheduled` and one open checkout per club | Accepted | 2026-11-11 |

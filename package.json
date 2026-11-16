@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm --filter @uniconnect/shared build && pnpm -r test",
+    "e2e": "pnpm --filter @uniconnect/shared build && pnpm --filter @uniconnect/frontend exec playwright test",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down"
   },

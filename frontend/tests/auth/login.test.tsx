@@ -53,17 +53,36 @@ describe('login page', () => {
     expect(authClient.signIn.email).not.toHaveBeenCalled();
   });
 
-  it('signs in with the normalised email and goes home', async () => {
+  it('signs in with the normalised email and goes to the dashboard', async () => {
     render(<LoginView />);
     fillValid();
     submit();
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith('/'));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/dashboard'));
     expect(authClient.signIn.email).toHaveBeenCalledWith({
       email: 'ayesha@example.com',
       password: 'Str0ng!pass',
     });
   });
+
+  it('returns to the page that sent the visitor here', async () => {
+    search = 'next=%2Fdashboard%2Fprofile';
+    render(<LoginView />);
+    fillValid();
+    submit();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/dashboard/profile'));
+  });
+
+  it.each(['https://evil.example/', '//evil.example/x', '/\\evil.example', 'javascript:alert(1)'])(
+    'ignores an off-site next (%s)',
+    async (next) => {
+      search = `next=${encodeURIComponent(next)}`;
+      render(<LoginView />);
+      fillValid();
+      submit();
+      await waitFor(() => expect(replace).toHaveBeenCalledWith('/dashboard'));
+    },
+  );
 
   it('disables the button while signing in', async () => {
     authClient.signIn.email.mockImplementation(pending);

@@ -7,6 +7,7 @@ jest.unstable_mockModule('../src/lib/prisma.js', () => ({ prisma: {} }));
 jest.unstable_mockModule('../src/lib/redis.js', () => ({ redis: {}, createRedis: jest.fn() }));
 
 const { app } = await import('../src/app.js');
+const { PER_EMAIL_LIMITS } = await import('../src/lib/auth.js');
 
 describe('Better Auth routes', () => {
   it('has no public sign-up route, so clients cannot choose their own role', async () => {
@@ -35,5 +36,9 @@ describe('Better Auth routes', () => {
       success: false,
       error: { code: 'NOT_FOUND', message: 'Not found.' },
     });
+  });
+
+  it('limits sign-in per account as well as per IP (review M1)', () => {
+    expect(PER_EMAIL_LIMITS['/sign-in/email']).toEqual({ window: 15 * 60, max: 10 });
   });
 });

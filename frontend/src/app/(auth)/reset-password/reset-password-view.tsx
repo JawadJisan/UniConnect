@@ -13,8 +13,8 @@ import { toApiError } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { AuthPage } from '../_components/auth-page';
 import { RESET_FLOW } from '../_components/flow-trail';
-import { describePassword, PASSWORD_HINT } from '../_components/password-hint';
-import { PasswordInput } from '../_components/password-input';
+import { describePassword, PASSWORD_HINT } from '@/components/password/password-hint';
+import { PasswordInput } from '@/components/password/password-input';
 
 // Holding a token means the link was requested and opened.
 const TRAIL = { steps: RESET_FLOW, current: 2, done: 2, label: 'Password reset' };

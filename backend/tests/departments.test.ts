@@ -36,8 +36,13 @@ describe('GET /api/v1/departments', () => {
     expect(res.status).toBe(500);
     expect(res.body).toEqual({
       success: false,
-      error: { code: 'INTERNAL_ERROR', message: expect.any(String) },
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: expect.any(String),
+        request_id: expect.any(String),
+      },
     });
     expect(JSON.stringify(res.body)).not.toContain('connection refused');
+    expect(res.body.error.request_id).toBe(res.headers['x-request-id']);
   });
 });

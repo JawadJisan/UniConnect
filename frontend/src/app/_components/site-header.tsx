@@ -4,6 +4,7 @@ import {
   BotIcon,
   CalendarIcon,
   DropletIcon,
+  LayoutDashboardIcon,
   LogInIcon,
   LogOutIcon,
   MenuIcon,
@@ -12,7 +13,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useState } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Command,
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/command';
 import { CommandChipButton } from '@/components/ui/command-chip';
 import { Kbd } from '@/components/ui/kbd';
+import { useCommandK, useIsApplePlatform } from '@/hooks/use-command-k';
 import { authClient } from '@/lib/auth-client';
 import { sampleEvents } from './sample-events';
 import { Wordmark } from './wordmark';
@@ -52,16 +54,6 @@ const account = [
   { label: 'Sign up', href: '/register', Icon: UserPlusIcon },
 ];
 
-const subscribeToNothing = () => () => {};
-
-function useIsApplePlatform() {
-  return useSyncExternalStore(
-    subscribeToNothing,
-    () => /Mac|iPhone|iPad/.test(navigator.userAgent),
-    () => true,
-  );
-}
-
 export function SiteHeader() {
   const router = useRouter();
   const isApple = useIsApplePlatform();
@@ -78,18 +70,11 @@ export function SiteHeader() {
     router.refresh();
   }
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        setQuery('');
-        setOpen((current) => !current);
-      }
-    }
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+  const toggle = useCallback(() => {
+    setQuery('');
+    setOpen((current) => !current);
   }, []);
+  useCommandK(toggle);
 
   function go(href: string) {
     setQuery('');
@@ -131,7 +116,14 @@ export function SiteHeader() {
               >
                 {user.name}
               </span>
-              <Button variant="secondary" size="sm" onClick={signOut}>
+              <Link
+                href="/dashboard"
+                prefetch={false}
+                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
+              >
+                Dashboard
+              </Link>
+              <Button variant="ghost" size="sm" onClick={signOut}>
                 Sign out
               </Button>
             </>
@@ -211,10 +203,16 @@ export function SiteHeader() {
             ) : null}
             <CommandGroup heading="Account">
               {user ? (
-                <CommandItem onSelect={signOut}>
-                  <LogOutIcon />
-                  Sign out
-                </CommandItem>
+                <>
+                  <CommandItem onSelect={() => go('/dashboard')}>
+                    <LayoutDashboardIcon />
+                    Dashboard
+                  </CommandItem>
+                  <CommandItem onSelect={signOut}>
+                    <LogOutIcon />
+                    Sign out
+                  </CommandItem>
+                </>
               ) : (
                 account.map(({ label, href, Icon }) => (
                   <CommandItem key={href} onSelect={() => go(href)}>

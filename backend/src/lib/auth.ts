@@ -13,9 +13,43 @@ import { enqueueEmail } from '../queues/email.queue.js';
 import { auditService, type AuditEntry } from '../services/audit.service.js';
 import { logger } from './logger.js';
 import { prisma } from './prisma.js';
-import { redis } from './redis.js';
+import { consume } from './rate-limit.js';
+import { endExpiredSession, sessionTooOld } from './session-age.js';
 
 const DAY = 24 * 60 * 60;
+
+/**
+ * request-password-reset answers no sooner than this (review M4, D46). Better Auth's queries for
+ * a known and an unknown email differ by a database round trip (about 250 ms measured against
+ * Neon from Dhaka), which is enough to tell whether an account exists. Padding every answer to a
+ * floor above the slower path hides it.
+ */
+export const RESET_FLOOR_MS = 2000;
+const resetStarted = new WeakMap<Request, number>();
+
+async function padToFloor(request: Request | undefined): Promise<void> {
+  const started = request && resetStarted.get(request);
+  if (started === undefined) return;
+  const wait = RESET_FLOOR_MS - (performance.now() - started);
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+}
+
+/** Better Auth routes whose JSON body repeats the session token (review I1). */
+const TOKEN_ECHO_PATHS = new Set(['/get-session', '/sign-in/email', '/list-sessions']);
+
+/** Removes `token` from a response body in place: top level, `session`, and list entries. */
+export function stripToken(body: unknown): void {
+  if (!body || typeof body !== 'object' || isAPIError(body)) return;
+  if (Array.isArray(body)) {
+    for (const item of body) stripToken(item);
+    return;
+  }
+  const record = body as Record<string, unknown>;
+  delete record.token;
+  if (record.session && typeof record.session === 'object') {
+    delete (record.session as Record<string, unknown>).token;
+  }
+}
 
 // Better Auth writes sign-in, verify-email and reset-password outside any transaction we can
 // join, so these audit rows are written straight after its write. A failure is logged and
@@ -30,30 +64,13 @@ async function auditAfterAuthWrite(entry: AuditEntry): Promise<void> {
   }
 }
 
-// Fixed-window counter in Redis. The Lua script makes increment-and-expire atomic, which is
-// what Better Auth's `consume` contract requires.
-const CONSUME_SCRIPT = `
-local count = redis.call('INCR', KEYS[1])
-if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
-return { count, redis.call('TTL', KEYS[1]) }`;
-
-async function consume(key: string, window: number, max: number) {
-  let reply: unknown;
-  try {
-    reply = await redis.eval(CONSUME_SCRIPT, 1, key, window);
-  } catch (err) {
-    // Rethrow the message only: ioredis errors can carry the AUTH command and its password.
-    // eslint-disable-next-line preserve-caught-error -- the cause holds the Redis password
-    throw new Error(`rate limit store unavailable: ${(err as Error).message}`);
-  }
-  const [count, ttl] = reply as [number, number];
-  return count > max
-    ? { allowed: false, retryAfter: ttl > 0 ? ttl : window }
-    : { allowed: true, retryAfter: null };
-}
-
-/** Per-email limits from PRD FR-AUTH-003.4 and FR-AUTH-007.5, on top of the per-IP ones. */
-const PER_EMAIL_LIMITS: Record<string, { window: number; max: number }> = {
+/**
+ * Per-email limits from PRD FR-AUTH-003.4 and FR-AUTH-007.5, on top of the per-IP ones. Sign-in
+ * is limited per account too (review M1), so guesses spread over forged client IPs still hit
+ * one bucket. The 15-minute window keeps a deliberate lock-out short.
+ */
+export const PER_EMAIL_LIMITS: Record<string, { window: number; max: number }> = {
+  '/sign-in/email': { window: 15 * 60, max: 10 },
   '/send-verification-email': { window: 5 * 60, max: 1 },
   '/request-password-reset': { window: 60 * 60, max: 3 },
 };
@@ -177,6 +194,10 @@ const options = {
 
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === '/request-password-reset' && ctx.request) {
+        resetStarted.set(ctx.request, performance.now());
+      }
+
       // Better Auth checks only length, so apply the full policy to new passwords.
       if (ctx.path === '/reset-password' || ctx.path === '/change-password') {
         if (!passwordSchema.safeParse(ctx.body?.newPassword).success) {
@@ -194,6 +215,13 @@ const options = {
         ctx.request?.headers.get('cookie')?.includes('session_token')
       ) {
         const current = await getSessionFromCtx(ctx, { disableRefresh: true });
+        if (current && sessionTooOld(current.session.createdAt)) {
+          await endExpiredSession(current.session.id);
+          throw new APIError('UNAUTHORIZED', {
+            code: 'SESSION_EXPIRED',
+            message: 'Your session has expired. Sign in again.',
+          });
+        }
         if (current && (current.user as { isActive?: boolean }).isActive === false) {
           throw new APIError('FORBIDDEN', {
             code: 'ACCOUNT_SUSPENDED',
@@ -206,7 +234,7 @@ const options = {
       // registration) also run this hook and must not use up the user's resend budget.
       const limit = PER_EMAIL_LIMITS[ctx.path];
       const email = typeof ctx.body?.email === 'string' ? ctx.body.email.trim().toLowerCase() : '';
-      if (limit && email && ctx.request) {
+      if (limit && email && ctx.request && env.AUTH_EMAIL_LIMITS === 'on') {
         let result;
         try {
           result = await consume(`rl:email:${ctx.path}:${email}`, limit.window, limit.max);
@@ -229,6 +257,11 @@ const options = {
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
+      // The session token belongs in the httpOnly cookie only (review I1). Over HTTP, drop it
+      // from the JSON of the routes that echo it; server-side auth.api calls keep theirs.
+      if (ctx.request && TOKEN_ECHO_PATHS.has(ctx.path)) stripToken(ctx.context.returned);
+      if (ctx.path === '/request-password-reset') await padToFloor(ctx.request);
+
       if (ctx.path !== '/change-password' || isAPIError(ctx.context.returned)) return;
       const userId = ctx.context.session?.user.id;
       if (!userId) return;
@@ -263,10 +296,11 @@ const options = {
 
   advanced: {
     database: { generateId: false }, // Postgres gen_random_uuid() creates every id.
-    useSecureCookies: env.NODE_ENV === 'production',
+    // `Secure` follows an https BETTER_AUTH_URL, so a deploy can't lose it by NODE_ENV (L3).
+    useSecureCookies: env.SECURE_COOKIES,
     defaultCookieAttributes: { httpOnly: true, sameSite: 'lax' },
-    // Set by the Next.js rewrite. A client-supplied value turns it into a list, which Better
-    // Auth then ignores rather than trusting.
+    // middleware/client-ip.ts overwrites this header with the one verified address before the
+    // Better Auth mount (H1), so whatever the browser sent never reaches here.
     ipAddress: { ipAddressHeaders: ['x-forwarded-for'] },
   },
 } satisfies BetterAuthOptions;
