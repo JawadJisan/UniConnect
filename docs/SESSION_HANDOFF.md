@@ -4,73 +4,53 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-1. **Phase 9 Part 2 released:**
-   - committed on `feat/chatbot-frontend` (`cd1e547`, `866dd2d`, `fb43d94`)
-   - merged into `development` as `8a972e3`
-   - typecheck passed, pushed to `origin/development`
-2. **Phase 10, hardening and release readiness:** on `chore/hardening`, cut from `development`. **Not pushed, not merged.** The user approved the plan without answering its ten open decisions; each was built at the recommended default and recorded in D46.
+Phase 10 close-out on `chore/hardening` (sessions of 2026-11-16 and 2026-11-17). The plan was to finish the Redis-dependent QA (full e2e, live Gemini, p95), then release.
 
-## Completed work (commits on `chore/hardening`)
+The local Upstash free database is over its 500k monthly requests, so the user deferred the Redis-dependent checks to the deployed stack. They also asked for Render free-tier readiness, the static gate, and a release through `development` into `main` (D48).
 
-- **`8a63174` fix: close the open security review findings.** All of DECISIONS §7:
-  - H1: trusted client IP through the Next proxy plus `PROXY_SHARED_SECRET`
-  - M4: reset padded to 2 s; the measured gap went from 252 ms to 4 ms
-  - L3: production env rules
-  - L4: auth body cap
-  - L5: department scope hides existence by default
-  - L6: name schema
-  - I1–I6: no token in JSON, 30-day absolute sessions, frontend CSP, cross-site mutation check, global per-IP limit, no stacks in production logs, request ids
-- **`f2eb36b` test(backend): audit every GET route for secrets and PII by role.** `pii-leak.int.test.ts` plus `docs/reviews/2026-11-security-audit.md`. No new IDOR or leak was found.
-- **`8fa6725` feat(backend): serve OpenAPI 3.0 docs at /api/docs.** The drift test walks the app's routes through `lib/mount.ts`.
-- **`f5cd52f` chore: run workers as their own process and add CI.** `src/worker.ts`, `RUN_WORKERS_IN_API`, `.github/workflows/ci.yml`.
-- **Last commit of the session:**
-  - `e2e/responsive.spec.ts` (375 px, every major page, three roles)
-  - frontend `tests/jest.setup.ts` (Testing Library's async timeout raised to 3 s for the parallel run)
-  - `docs/DEPLOYMENT.md` (topology, per-service env, release, rollback, restore drill, `main` checklist)
-  - D46, the §7 rows, the PRD #24 row, `CLAUDE.md`, `TASKS.md` and this file
+## Completed work
+
+- **D47 work from the last session**, committed in this release: `PAYMENT_GATEWAY=disabled`, the blood-list refetch fix, and the e2e locator fixes. See D47.
+- **Render free tier (D48).**
+  - One web service runs the API and every BullMQ worker with the existing `RUN_WORKERS_IN_API=true`. The user chose that over adding an `ENABLE_EMBEDDED_WORKER` flag.
+  - New `backend/src/workers/options.ts`: `workerOptions(concurrency)` gives each worker its own connection and a `drainDelay` of 30 s in production (BullMQ's 5 s elsewhere). All six workers use it.
+  - Test: `tests/worker-options.test.ts`.
+- **Docs.**
+  - `DEPLOYMENT.md` has a "Render free tier: one service" section: build and start commands, and Key Value settings (internal URL, `noeviction`, no persistence). It also covers sleep behaviour, the full Render and Vercel variable tables, and the deferred post-deploy checks. The `main` checklist allows the live Gemini check after deploy.
+  - `.env.example` describes the Render `REDIS_URL` form and `RUN_WORKERS_IN_API=true` on Render.
+  - DECISIONS has D48, which records the PRD §3 deviation and relaxes D46's "live Gemini before `main`". TASKS has the Phase 10 row.
 
 ## Commands executed and results
 
-| Command                                                                                          | Result                                                                                                                                                                                           |
-| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm typecheck`, `pnpm lint`, `pnpm format:check`                                               | Pass (after fixing three lint errors and the formatting)                                                                                                                                         |
-| `pnpm test` (all unit tests)                                                                     | Backend **437/437** (22 suites). Frontend: the first full run had 3 failures in two suites; they passed alone, and the next full run was 451/451. After `jest.setup.ts`, **451/451** (36 suites) |
-| `test:integration` full, with coverage                                                           | **771/771** (18 suites, including `rbac-matrix`, `pii-leak` and `security-fixes`). Services and controllers: 93.99% statements, 85.95% branches, 98.45% functions, 97.87% lines (PRD target 70%) |
-| `security-fixes.int` M4                                                                          | Failed first (median gap 252 ms); 4 ms after padding                                                                                                                                             |
-| `pnpm build`                                                                                     | Pass (shared, backend `dist/server.js` and `dist/worker.js`, `next build`)                                                                                                                       |
-| Built API (`RUN_WORKERS_IN_API=false`, port 4300) plus built worker, against `development`       | Both started; `/health/ready` gave db ok and redis ok; `/api/docs/openapi.json` 200; `x-request-id` present; both stopped afterwards                                                             |
-| `playwright test e2e/ai.spec.ts` and `e2e/shell.spec.ts`, `admin.spec.ts` (before the hardening) | 4/4 and 10/10                                                                                                                                                                                    |
-| Spike: `proxy.ts` headers through the `next.config` rewrite                                      | Forged secret and IP replaced by the proxy's own values                                                                                                                                          |
-| Gemini probe (the app client, configured model)                                                  | One call timed out at 10 s; one answered in **4.4 s** (target < 3 s)                                                                                                                             |
-| `pnpm e2e` (full, the QA gate)                                                                   | **Not completed.** Claude Code stopped it because the machine ran critically low on memory, before any test finished. Its leftover `next dev` (3100) and API (4100) processes were stopped       |
+| Command                                                          | Result                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm e2e --workers=1` (2026-11-16)                              | **50 passed, 1 failed, 1 skipped** (20.6 min). The failure is `ai.spec` "the real API says when Gemini is not set up"                                                                                                                                              |
+| `pnpm e2e --workers=1 e2e/ai.spec.ts`, twice                     | 3 passed, the same test failed. The Playwright trace shows 503 `AI_UNAVAILABLE`, from the AI limiter failing closed                                                                                                                                                |
+| Read-only Redis probes (PING, `EVAL` of a TTL)                   | PING answers PONG, but `EVAL` and the app's writes get `ERR max requests limit exceeded. Limit: 500000, Usage: 500007`. **PING passing doesn't mean the database works.** `backend/.env` was last modified 2026-11-14, so it still holds the exhausted Upstash URL |
+| `worker-options.test.ts` and `redis-clients.test.ts`             | 6/6                                                                                                                                                                                                                                                                |
+| `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm build` | Pass                                                                                                                                                                                                                                                               |
+| `pnpm test`                                                      | Backend 442/442 (23 suites), frontend 453/453 (36 suites)                                                                                                                                                                                                          |
 
 ## Not covered
 
-- **The full e2e suite after the hardening.** This includes:
-  - the new `responsive.spec.ts` and `security-headers.spec.ts`
-  - every existing spec against the new CSP, the Origin check, the proxy matcher and the name schema
-
-  Rerun `pnpm e2e` with memory free: close other apps, and don't run it alongside `test:integration`.
-
-- **The live Gemini spec** (`AI_LIVE=1 … e2e/ai.live.spec.ts`), the PRD < 3 s check. Google was slow: the last probe answered in 4.4 s.
-- **The API p95 smoke** (Step 6.7).
-- **The restore drill.** The steps are in `docs/DEPLOYMENT.md`; it needs explicit approval for the Neon branch create and delete.
-- **The docs production gate** (`API_DOCS` on or off, super admin only) has no automated test; it's a two-line condition in `docs.routes.ts` and `app.ts`.
-- **The H1, I1 and I2 tests weren't seen failing before their fixes** (they were written with them). The M4 test did fail first.
-- **CI has never run on GitHub.** The workflow's commands match the local gate, which passed.
-
-## Release blockers (`docs/DEPLOYMENT.md`)
-
-1. `PAYMENT_GATEWAY`: `mock` is refused in production and `sslcommerz` isn't built, so the API can't start in production. A decision is needed: build SSLCommerz, or add a `disabled` mode that answers 503 on checkout.
-2. SMTP provider (PRD #20) is pending; production requires it.
+- **Not run, deferred to the deployed stack (D48):** `ai.spec` "not set up", the p95 smoke (PRD §21, under 300 ms) and the live Gemini spec. None of them has passed yet.
+- The integration suite didn't run this session; its last run was 771/771 on 2026-11-15. The Redis-backed parts of e2e have only been run against the exhausted database.
+- The Render setup hasn't been deployed or tried: no Render or Vercel service exists yet.
 
 ## Exact next task
 
-1. Run `pnpm e2e` with memory free, and fix what fails.
-2. Run the live Gemini spec and the p95 smoke.
-3. Get the user's decision on the payment blocker, and approval for the restore drill.
-4. When asked, push `chore/hardening` and merge it into `development`.
+1. A person deploys:
+   - Neon `production`: `db:deploy`, then `db:seed`.
+   - Render Free Key Value: same region, `noeviction`.
+   - The Render web service: variables per `docs/DEPLOYMENT.md`.
+   - The Vercel project.
+2. Run the smoke checks and the deferred checks in `docs/DEPLOYMENT.md`:
+   - The assistant answers in under 3 s, and the chatbot log has no PII.
+   - Draft with AI works.
+   - p95 of the standard reads after warm-up.
+3. Record the results in DEPLOYMENT.md and TASKS, then tick the `main` checklist. Tag `v1.0.0` once green.
+4. For local work: point `backend/.env` `REDIS_URL` at a working Redis, then rerun `pnpm e2e --workers=1`.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, this file, D46 and `docs/DEPLOYMENT.md`. On `chore/hardening`, run `pnpm e2e` and report; then the live Gemini spec. Ask for the payment-gateway decision before anything else ships.
+> Read `CLAUDE.md`, this file, D48 and `docs/DEPLOYMENT.md` (Render free tier). Help with the Render + Vercel deploy, then run the deferred live checks and record them.
