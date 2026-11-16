@@ -79,6 +79,16 @@ export const useMyDonations = (params: { page?: number }, enabled = true) =>
 export const useUnverifiedDonations = (params: UnverifiedDonationsParams) =>
   useList<UnverifiedDonation>('unverified', '/v1/admin/blood/donations/unverified', params);
 
+/**
+ * Refetches every blood list after a create. In-flight loads are cancelled first: a list still
+ * on its first load has no data, so `invalidateQueries` alone would reuse that request, which
+ * may have read the table before the write (found by e2e).
+ */
+async function refetchAfterCreate(client: QueryClient) {
+  await client.cancelQueries({ queryKey: BLOOD_KEY });
+  return client.invalidateQueries({ queryKey: BLOOD_KEY });
+}
+
 /** Writes a returned request into every cached page at once, then refetches the lists. */
 function replaceRequest(client: QueryClient, row: BloodRequest) {
   client.setQueriesData<Paginated<BloodRequest>>(
@@ -96,7 +106,7 @@ export function useCreateBloodRequest() {
       call(
         async () => (await api.post<Envelope<BloodRequest>>('/v1/blood/requests', body)).data.data,
       ),
-    onSuccess: () => client.invalidateQueries({ queryKey: BLOOD_KEY }),
+    onSuccess: () => refetchAfterCreate(client),
   });
 }
 
@@ -128,7 +138,7 @@ export function useRecordDonation() {
   return useMutation({
     mutationFn: (body: CreateDonationBody) =>
       call(async () => (await api.post<Envelope<Donation>>('/v1/blood/donations', body)).data.data),
-    onSuccess: () => client.invalidateQueries({ queryKey: BLOOD_KEY }),
+    onSuccess: () => refetchAfterCreate(client),
   });
 }
 

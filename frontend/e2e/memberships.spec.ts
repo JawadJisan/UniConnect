@@ -94,7 +94,7 @@ test('a super admin sees every membership and filters by status', async ({ page 
   // Active and scheduled for the first student, cancelled for the second.
   await expect(table.getByRole('row')).toHaveCount(4);
 
-  await page.getByLabel('Status').selectOption('scheduled');
+  await page.getByLabel('Status', { exact: true }).selectOption('scheduled');
   await expect(page).toHaveURL(/status=scheduled/);
   await expect(table.getByRole('row')).toHaveCount(2);
   await expect(table.getByText(USERS.student.name, { exact: true })).toBeVisible();
