@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger.js';
-import { createRedis } from '../lib/redis.js';
+import { workerOptions } from './options.js';
 import { requestService } from '../modules/blood/request.service.js';
 import { BLOOD_JOBS, BLOOD_QUEUE } from '../queues/blood.queue.js';
 
@@ -16,7 +16,7 @@ export function startBloodWorker(): Worker {
       }
       logger.warn(`blood worker: unknown job ${job.name}`);
     },
-    { connection: createRedis(), concurrency: 1 },
+    workerOptions(1),
   );
 
   worker.on('failed', (job, err) => {
