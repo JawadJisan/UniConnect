@@ -33,7 +33,7 @@ const clubDepartment: DepartmentResolver = (req) =>
 // Only the club's own dept_admin or a super_admin manages the committee. Clubs are visible to
 // everyone signed in, so a cross-department attempt is a 403, not a hidden 404.
 const managers = requireRole(['dept_admin', 'super_admin']);
-const scoped = requireDepartmentScope(clubDepartment);
+const scoped = requireDepartmentScope(clubDepartment, { hide: false });
 
 committeeRouter.get(
   '/',

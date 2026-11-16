@@ -365,6 +365,39 @@ describe('blood hub: my donations tab', () => {
       units: 1,
     });
   });
+
+  it('shows the new record even when the first history load was still in flight', async () => {
+    // e2e found this: the first GET answered after the POST, and the refetch was folded into
+    // that stale request, so the history stayed empty.
+    search = new URLSearchParams('tab=donations');
+    serve({ donations: [donation_()] });
+    let releaseFirst: (value: unknown) => void = () => {};
+    const serveRest = get.getMockImplementation()!;
+    let first = true;
+    get.mockImplementation(async (url: string, config?: { params?: unknown }) => {
+      if (url === '/v1/blood/donations/my' && first) {
+        first = false;
+        return new Promise((resolve) => {
+          releaseFirst = resolve;
+        });
+      }
+      return serveRest(url, config);
+    });
+    post.mockResolvedValue(ok(donation_()));
+    renderHub();
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Record donation' }))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Record donation' });
+    fireEvent.change(within(dialog).getByLabelText('Donation date'), {
+      target: { value: addDaysIso(-2) },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Record donation' }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    releaseFirst(page([]));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+
+    expect(await screen.findByRole('table', { name: 'Your donations, newest first' })).toBeTruthy();
+  });
 });
 
 describe('admin blood verifications', () => {

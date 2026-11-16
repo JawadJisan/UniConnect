@@ -253,6 +253,21 @@ describe('plan dialog', () => {
     expect(assign).not.toHaveBeenCalled();
   });
 
+  it('shows the API message when payments are switched off (503, D47)', async () => {
+    serve();
+    post.mockRejectedValue(
+      apiError(503, 'PAYMENTS_UNAVAILABLE', 'Membership payments are not available yet.'),
+    );
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'Purchase membership' }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Continue to payment' }));
+    expect(
+      await within(dialog).findByText('Membership payments are not available yet.'),
+    ).toBeTruthy();
+    expect(assign).not.toHaveBeenCalled();
+  });
+
   it('renews from the current membership, starting the day after it ends', async () => {
     const current = membership({ end_date: '2099-12-31' });
     serve({ mine: [current] });

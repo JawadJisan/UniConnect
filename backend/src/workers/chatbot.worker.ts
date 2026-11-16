@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger.js';
-import { createRedis } from '../lib/redis.js';
+import { workerOptions } from './options.js';
 import { chatbotService } from '../modules/chatbot/chatbot.service.js';
 import { CHATBOT_JOBS, CHATBOT_QUEUE } from '../queues/chatbot.queue.js';
 
@@ -16,7 +16,7 @@ export function startChatbotWorker(): Worker {
       }
       logger.warn(`chatbot worker: unknown job ${job.name}`);
     },
-    { connection: createRedis(), concurrency: 1 },
+    workerOptions(1),
   );
 
   worker.on('failed', (job, err) => {

@@ -91,6 +91,17 @@ interface OpenedCheckout {
   type: MembershipType;
 }
 
+/** D47: with payments switched off, refuse before any row is written. */
+function assertPaymentsEnabled(): void {
+  if (!paymentGateway.enabled) {
+    throw new AppError(
+      503,
+      'PAYMENTS_UNAVAILABLE',
+      'Membership payments are not available yet. Try again later.',
+    );
+  }
+}
+
 /**
  * FR-MEM-001 and 002, up to the gateway call. One transaction, serialized per student by the
  * user-row lock; the partial unique indexes are the backstop (DECISIONS D11).
@@ -257,6 +268,7 @@ export const membershipService = {
     caller: MembershipCaller,
     input: { club_id: number; type: MembershipType },
   ): Promise<CheckoutResult> {
+    assertPaymentsEnabled();
     const opened = await openCheckout(caller, {
       kind: 'purchase',
       clubId: input.club_id,
@@ -271,6 +283,7 @@ export const membershipService = {
     id: number,
     input: { type?: MembershipType },
   ): Promise<CheckoutResult> {
+    assertPaymentsEnabled();
     const opened = await openCheckout(caller, {
       kind: 'renew',
       membershipId: id,

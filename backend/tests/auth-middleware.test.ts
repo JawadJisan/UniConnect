@@ -7,6 +7,8 @@ type SessionResult = { headers: Headers; response: unknown };
 const getSession = jest.fn<(args: unknown) => Promise<SessionResult>>();
 
 jest.unstable_mockModule('../src/lib/auth.js', () => ({ auth: { api: { getSession } } }));
+const deleteMany = jest.fn<(args: unknown) => Promise<unknown>>();
+jest.unstable_mockModule('../src/lib/prisma.js', () => ({ prisma: { session: { deleteMany } } }));
 
 const { requireAuth, requireRole, requireDepartmentScope, departmentFromParam } =
   await import('../src/middleware/auth.js');
@@ -23,7 +25,7 @@ app.get(
   '/departments/:departmentId',
   requireAuth,
   requireRole(['dept_admin', 'super_admin']),
-  requireDepartmentScope(departmentFromParam('departmentId')),
+  requireDepartmentScope(departmentFromParam('departmentId'), { hide: false }),
   (_req, res) => {
     res.json({ ok: true });
   },
@@ -31,7 +33,8 @@ app.get(
 app.get(
   '/hidden/:departmentId',
   requireAuth,
-  requireDepartmentScope(departmentFromParam('departmentId'), { hide: true }),
+  // The default: a cross-department miss looks like a missing resource (L5).
+  requireDepartmentScope(departmentFromParam('departmentId')),
   (_req, res) => {
     res.json({ ok: true });
   },
@@ -42,13 +45,13 @@ app.get('/broken', requireRole(['student']), (_req, res) => {
 });
 app.use(errorHandler);
 
-function signedIn(user: Record<string, unknown>, setCookie?: string) {
+function signedIn(user: Record<string, unknown>, setCookie?: string, createdAt?: Date) {
   const headers = new Headers();
   if (setCookie) headers.append('set-cookie', setCookie);
   getSession.mockResolvedValue({
     headers,
     response: {
-      session: { id: 's1', userId: 'u1' },
+      session: { id: 's1', userId: 'u1', createdAt },
       user: { id: 'u1', role: 'student', departmentId: 1, isActive: true, ...user },
     },
   });
@@ -56,6 +59,25 @@ function signedIn(user: Record<string, unknown>, setCookie?: string) {
 
 beforeEach(() => {
   getSession.mockReset().mockResolvedValue({ headers: new Headers(), response: null });
+  deleteMany.mockReset().mockResolvedValue({ count: 1 });
+});
+
+describe('absolute session lifetime (review I2)', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it('keeps a session younger than 30 days, however it slid', async () => {
+    signedIn({}, undefined, new Date(Date.now() - 29 * DAY));
+    expect((await request(app).get('/me')).status).toBe(200);
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('ends a session signed in more than 30 days ago', async () => {
+    signedIn({}, undefined, new Date(Date.now() - 31 * DAY));
+    const res = await request(app).get('/me');
+    expect(res.status).toBe(401);
+    expect(res.body.error.message).toBe('Your session has expired. Sign in again.');
+    expect(deleteMany).toHaveBeenCalledWith({ where: { id: 's1' } });
+  });
 });
 
 describe('requireAuth', () => {
@@ -120,13 +142,13 @@ describe('requireDepartmentScope', () => {
     expect((await request(app).get('/departments/1')).status).toBe(200);
   });
 
-  it('returns 403 for another department', async () => {
+  it('returns 403 for another department with hide: false', async () => {
     signedIn({ role: 'dept_admin', departmentId: 1 });
 
     expect((await request(app).get('/departments/2')).status).toBe(403);
   });
 
-  it('returns 404 for another department when existence is hidden', async () => {
+  it('returns 404 for another department by default (L5)', async () => {
     signedIn({ departmentId: 1 });
 
     expect((await request(app).get('/hidden/2')).status).toBe(404);

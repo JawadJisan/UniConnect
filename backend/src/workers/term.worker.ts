@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger.js';
-import { createRedis } from '../lib/redis.js';
+import { workerOptions } from './options.js';
 import { committeeService } from '../modules/committee/committee.service.js';
 import { deptAdminTermService } from '../modules/dept-admin-terms/dept-admin-term.service.js';
 import { TERM_JOBS, TERM_QUEUE } from '../queues/term.queue.js';
@@ -26,7 +26,7 @@ export function startTermWorker(): Worker {
       }
     },
     // One at a time: both jobs lock user rows and gain nothing from running in parallel.
-    { connection: createRedis(), concurrency: 1 },
+    workerOptions(1),
   );
 
   worker.on('failed', (job, err) => {

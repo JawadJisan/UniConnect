@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js';
+import { createDisabledGateway } from './disabled.gateway.js';
 import { createMockGateway } from './mock.gateway.js';
 import type { PaymentGateway } from './payment-gateway.js';
 
@@ -14,6 +15,8 @@ function pick(): PaymentGateway {
   switch (env.PAYMENT_GATEWAY) {
     case 'mock':
       return createMockGateway(env.FRONTEND_ORIGIN);
+    case 'disabled':
+      return createDisabledGateway();
     case 'sslcommerz':
       throw new Error('PAYMENT_GATEWAY=sslcommerz is not implemented yet (DECISIONS D32).');
   }

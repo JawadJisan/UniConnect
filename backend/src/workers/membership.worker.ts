@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger.js';
-import { createRedis } from '../lib/redis.js';
+import { workerOptions } from './options.js';
 import { membershipService } from '../modules/memberships/membership.service.js';
 import { MEMBERSHIP_JOBS, MEMBERSHIP_QUEUE } from '../queues/membership.queue.js';
 
@@ -25,7 +25,7 @@ export function startMembershipWorker(): Worker {
       }
     },
     // One at a time: the jobs lock rows in batches and gain nothing from running in parallel.
-    { connection: createRedis(), concurrency: 1 },
+    workerOptions(1),
   );
 
   worker.on('failed', (job, err) => {

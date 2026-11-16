@@ -1,6 +1,6 @@
 /**
  * The payment gateway contract (DECISIONS D32). Services depend only on this interface; the
- * provider (the mock now, SSLCommerz later) is picked in ./index.ts from PAYMENT_GATEWAY.
+ * provider (the mock or `disabled` now, SSLCommerz later) is picked in ./index.ts from PAYMENT_GATEWAY.
  *
  * Amounts cross this boundary as 2-decimal strings ("500.00"), never JS numbers.
  */
@@ -37,6 +37,8 @@ export interface OrderValidation {
 
 export interface PaymentGateway {
   readonly name: string;
+  /** False when payments are switched off (`disabled`): checkout answers 503 PAYMENTS_UNAVAILABLE. */
+  readonly enabled: boolean;
   /** Opens a hosted checkout session. Throws when the gateway refuses or is unreachable. */
   initSession(input: InitSessionInput): Promise<InitSessionResult>;
   /** Order Validation API: confirms a `val_id` from an IPN. Throws when unreachable. */

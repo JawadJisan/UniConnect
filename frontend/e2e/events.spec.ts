@@ -42,13 +42,15 @@ test('an organizer publishes an event, a student registers, and is checked in', 
   await page.getByLabel(/^Capacity/).fill('10');
   await page.getByRole('button', { name: 'Create draft' }).click();
   await expect(page.getByRole('heading', { level: 1, name: TITLE })).toBeVisible();
-  await expect(page.getByText('Draft', { exact: true })).toBeVisible();
+  // `.filter({ visible: true })`: the overview Next keeps alive while hidden (D45) also shows a
+  // Draft badge once its status counts refetch.
+  await expect(page.getByText('Draft', { exact: true }).filter({ visible: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Publish' }).click();
   const dialog = page.getByRole('dialog', { name: 'Publish this event?' });
   await dialog.getByRole('button', { name: 'Publish event' }).click();
   await expect(page.getByText('Event published.')).toBeVisible();
-  await expect(page.getByText('Draft', { exact: true })).toBeHidden();
+  await expect(page.getByText('Draft', { exact: true }).filter({ visible: true })).toHaveCount(0);
   await signOut(page);
 
   // 2. Ayesha finds it, registers, cancels, and registers again (the row is reused).

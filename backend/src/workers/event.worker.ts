@@ -1,6 +1,6 @@
 import { Worker } from 'bullmq';
 import { logger } from '../lib/logger.js';
-import { createRedis } from '../lib/redis.js';
+import { workerOptions } from './options.js';
 import { fanOutEventEmails } from '../modules/events/event.notify.js';
 import { eventService } from '../modules/events/event.service.js';
 import {
@@ -29,7 +29,7 @@ export function startEventWorker(): Worker<NotifyEventJob> {
       );
       logger.info(`events: ${queued} ${job.data.kind} emails queued for event ${job.data.eventId}`);
     },
-    { connection: createRedis(), concurrency: 1 },
+    workerOptions(1),
   );
 
   // Job data holds ids only, but log the message alone like every other worker.

@@ -9,7 +9,7 @@ import {
 } from '../emails/templates.js';
 import { logger } from '../lib/logger.js';
 import { sendMail } from '../lib/mailer.js';
-import { createRedis } from '../lib/redis.js';
+import { workerOptions } from './options.js';
 import { EMAIL_QUEUE, type EmailJob } from '../queues/email.queue.js';
 
 /** Starts the email worker on its own Redis connection, as BullMQ requires. */
@@ -36,7 +36,7 @@ export function startEmailWorker(): Worker<EmailJob> {
           return sendMail(bloodRequestFulfilledTemplate(data));
       }
     },
-    { connection: createRedis(), concurrency: 5 },
+    workerOptions(5),
   );
 
   // Never log job data: it contains the token link.

@@ -28,6 +28,8 @@ const { Prisma } = await import('../src/generated/prisma/client.js');
 const { addDays, addMonths, membershipEnd, todayInDhaka, toDbDate, fromDbDate } =
   await import('../src/lib/dates.js');
 const { decodeMockValId, createMockGateway } = await import('../src/lib/payments/mock.gateway.js');
+const { createDisabledGateway } = await import('../src/lib/payments/disabled.gateway.js');
+const { GatewayError } = await import('../src/lib/payments/payment-gateway.js');
 const { toMembership, toAdminMembership } =
   await import('../src/modules/memberships/membership.mapper.js');
 const { membershipRouter, adminMembershipRouter } =
@@ -301,5 +303,25 @@ describe('route guards (before any database call)', () => {
 
   it('requireUserType fails closed with 500 when requireAuth is missing', async () => {
     expect((await request(app).get('/broken')).status).toBe(500);
+  });
+});
+
+describe('disabled payment gateway (D47)', () => {
+  it('reports itself off and fails every call like an unreachable provider', async () => {
+    const gateway = createDisabledGateway();
+    expect(gateway).toMatchObject({ name: 'disabled', enabled: false });
+    expect(createMockGateway('http://localhost:3000').enabled).toBe(true);
+    await expect(gateway.validateOrder('MOCK-VALID-x')).rejects.toBeInstanceOf(GatewayError);
+    await expect(gateway.queryTransaction('UC-1')).rejects.toBeInstanceOf(GatewayError);
+    await expect(
+      gateway.initSession({
+        tranId: 'UC-1',
+        amount: '500.00',
+        currency: 'BDT',
+        productName: 'x',
+        customer: { name: 'A', email: 'a@x.test', phone: null },
+        urls: { success: '', fail: '', cancel: '', ipn: '' },
+      }),
+    ).rejects.toBeInstanceOf(GatewayError);
   });
 });

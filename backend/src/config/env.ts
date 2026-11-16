@@ -33,18 +33,55 @@ const envSchema = z
     CLOUDINARY_API_KEY: z.string().optional(),
     CLOUDINARY_API_SECRET: z.string().optional(),
 
-    // Membership payments (DECISIONS D32). `mock` stands in for SSLCommerz until the merchant
-    // account exists; it is refused in production. `sslcommerz` is not built yet.
-    PAYMENT_GATEWAY: z.enum(['mock', 'sslcommerz']).default('mock'),
+    // Membership payments (DECISIONS D32, D47). `mock` stands in for SSLCommerz until the merchant
+    // account exists; it is refused in production. `disabled` turns checkout off (503
+    // PAYMENTS_UNAVAILABLE) and is the production value until `sslcommerz` is built.
+    PAYMENT_GATEWAY: z.enum(['mock', 'sslcommerz', 'disabled']).default('mock'),
 
     // Gemini (PRD FR-AI; DECISIONS D44). Optional in development and test: without both, the
     // chatbot and the event description generator answer 503 AI_NOT_CONFIGURED. The model ID is
     // never hard-coded. Tests mock src/lib/gemini.ts.
     GEMINI_API_KEY: z.string().optional(),
     GEMINI_MODEL: z.string().optional(),
+
+    // The Next.js proxy's shared secret (DECISIONS §7 H1, D46). Only a request carrying it may
+    // name the client IP; in production a request without it is refused, so the API port can't
+    // be used directly. Optional in development and test, where the socket address is used.
+    PROXY_SHARED_SECRET: z
+      .string()
+      .min(32, 'PROXY_SHARED_SECRET must be at least 32 characters')
+      .optional(),
+    // Interactive API docs at /api/docs (PRD §3, §21; D46). Defaults to on outside production;
+    // in production `on` serves them to the super admin only.
+    API_DOCS: z.enum(['on', 'off']).optional(),
+    // Run the BullMQ workers inside the API process (D46). Defaults to true outside production;
+    // production runs them as their own service (`pnpm start:worker`).
+    RUN_WORKERS_IN_API: z.enum(['true', 'false']).optional(),
+
+    // Read only to detect a hosting platform (L3 below).
+    RAILWAY_ENVIRONMENT_NAME: z.string().optional(),
+    RENDER: z.string().optional(),
   })
   .superRefine((value, ctx) => {
+    // L3: a hosted deploy that forgot NODE_ENV would otherwise run as development. Railway and
+    // Render set these on every deploy; local machines and CI don't.
+    if (value.NODE_ENV !== 'production' && (value.RAILWAY_ENVIRONMENT_NAME || value.RENDER)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['NODE_ENV'],
+        message: 'NODE_ENV must be production on a hosting platform',
+      });
+    }
     if (value.NODE_ENV !== 'production') return;
+    for (const key of ['BETTER_AUTH_URL', 'FRONTEND_ORIGIN'] as const) {
+      if (!value[key].startsWith('https://')) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} must be https in production`,
+        });
+      }
+    }
     if (value.AUTH_EMAIL_LIMITS === 'off') {
       ctx.addIssue({
         code: 'custom',
@@ -69,6 +106,7 @@ const envSchema = z
       'CLOUDINARY_API_SECRET',
       'GEMINI_API_KEY',
       'GEMINI_MODEL',
+      'PROXY_SHARED_SECRET',
     ] as const;
     for (const key of required) {
       if (!value[key]) {
@@ -77,7 +115,23 @@ const envSchema = z
     }
   });
 
-// Empty strings in .env (KEY=) mean "not set".
-const raw = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== ''));
+/**
+ * Validates a set of variables. Exported for tests; the app uses `env` below. Empty strings
+ * (`KEY=` in .env) mean "not set".
+ */
+export function parseEnv(source: Record<string, string | undefined>) {
+  const raw = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== ''));
+  const parsed = envSchema.parse(raw);
+  const production = parsed.NODE_ENV === 'production';
+  return {
+    ...parsed,
+    API_DOCS: parsed.API_DOCS ?? (production ? 'off' : 'on'),
+    RUN_WORKERS_IN_API: (parsed.RUN_WORKERS_IN_API ?? (production ? 'false' : 'true')) === 'true',
+    /** Cookies carry `Secure` whenever the browser-facing origin is https (L3), not by NODE_ENV. */
+    SECURE_COOKIES: parsed.BETTER_AUTH_URL.startsWith('https://'),
+  };
+}
 
-export const env = envSchema.parse(raw);
+export type Env = ReturnType<typeof parseEnv>;
+
+export const env: Env = parseEnv(process.env);

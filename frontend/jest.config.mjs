@@ -5,6 +5,7 @@ const createJestConfig = nextJest({ dir: './' });
 const config = createJestConfig({
   testEnvironment: 'jsdom',
   roots: ['<rootDir>/tests'],
+  setupFiles: ['<rootDir>/tests/jest.setup.ts'],
   moduleNameMapper: {
     // better-auth/react is ESM-only, and every test should control the session anyway, so
     // createAuthClient() returns the double in tests/mocks/auth-client.ts. (Mapping

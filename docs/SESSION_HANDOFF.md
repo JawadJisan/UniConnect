@@ -4,65 +4,53 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Phase 9, the AI chatbot, Part 2 (frontend, FR-AI-001–003), on `feat/chatbot-frontend` cut from `development` (`ace744d`, which has Part 1 merged). Built and verified this session; **not committed**.
+Phase 10 close-out on `chore/hardening` (sessions of 2026-11-16 and 2026-11-17). The plan was to finish the Redis-dependent QA (full e2e, live Gemini, p95), then release.
 
-The user approved the plan with four defaults, each recorded in D45 and still changeable:
-
-- Draft with AI needs a venue, because the API requires it
-- chat history lives in component state only
-- the panel sits below the role and personal views
-- the super admin always sees the panel and falls back on a 503
-
-The user also put a real `GEMINI_API_KEY` and `GEMINI_MODEL` in `backend/.env` and asked for a test against it.
+The local Upstash free database is over its 500k monthly requests, so the user deferred the Redis-dependent checks to the deployed stack. They also asked for Render free-tier readiness, the static gate, and a release through `development` into `main` (D48).
 
 ## Completed work
 
-- **Helpers and hooks:**
-  - `src/lib/chatbot.ts`: `toAiError` (keeps a 429's `Retry-After`), `aiErrorMessage`, `sourceHref`/`sourceLabel`, `STARTER_PROMPTS`, `chatLogParamsFromUrl`
-  - `src/hooks/use-chatbot.ts`: `useAskChatbot`, `useChatLogs`, `useGenerateEventDescription`
-- **Assistant (FR-AI-001):** `dashboard/_components/assistant-section.tsx`, mounted in `overview-view.tsx` after the role and personal sections.
-  - Gated by `chatbot.enabled` from the personal view, or by a 503 `AI_NOT_CONFIGURED` for the super admin.
-  - Starter chips, a 500-character counter, Enter to send, and a typing indicator.
-  - Inline 429 countdown, plus Retry on a failed question.
-- **Logs (FR-AI-002):** `dashboard/admin/chatbot-logs/` (page, `chat-logs-view.tsx`, `chat-log-dialog.tsx`), and a "Chatbot logs" nav item (super admin, so also in ⌘K).
-- **Draft with AI (FR-AI-003):** `events/_components/draft-description.tsx`, wired into `event-form.tsx`.
-  - Needs title, club, start and venue.
-  - Asks before replacing text.
-  - Fills the field as a dirty change and saves nothing.
-- **Playwright:** `playwright.config.ts` blanks `GEMINI_API_KEY`/`GEMINI_MODEL` unless `AI_LIVE=1`. Two new specs:
-  - `e2e/ai.spec.ts`: mocked.
-  - `e2e/ai.live.spec.ts`: opt-in, real model.
-- **Unit tests:** `tests/lib/chatbot.test.ts`, `tests/app/assistant.test.tsx` and `tests/app/chat-logs.test.tsx`, plus additions to `event-form.test.tsx` and `nav.test.ts`.
-- **Docs:** D45, the DESIGN.md §7 entries (Assistant panel, Chatbot logs, Draft with AI), §11 `SYS.AI.*`, `TASKS.md` row 9 and `CLAUDE.md`.
+- **D47 work from the last session**, committed in this release: `PAYMENT_GATEWAY=disabled`, the blood-list refetch fix, and the e2e locator fixes. See D47.
+- **Render free tier (D48).**
+  - One web service runs the API and every BullMQ worker with the existing `RUN_WORKERS_IN_API=true`. The user chose that over adding an `ENABLE_EMBEDDED_WORKER` flag.
+  - New `backend/src/workers/options.ts`: `workerOptions(concurrency)` gives each worker its own connection and a `drainDelay` of 30 s in production (BullMQ's 5 s elsewhere). All six workers use it.
+  - Test: `tests/worker-options.test.ts`.
+- **Docs.**
+  - `DEPLOYMENT.md` has a "Render free tier: one service" section: build and start commands, and Key Value settings (internal URL, `noeviction`, no persistence). It also covers sleep behaviour, the full Render and Vercel variable tables, and the deferred post-deploy checks. The `main` checklist allows the live Gemini check after deploy.
+  - `.env.example` describes the Render `REDIS_URL` form and `RUN_WORKERS_IN_API=true` on Render.
+  - DECISIONS has D48, which records the PRD §3 deviation and relaxes D46's "live Gemini before `main`". TASKS has the Phase 10 row.
 
 ## Commands executed and results
 
-| Command                                                                                                                           | Result                                                                                                                                                                                                                                                                                                     |
-| --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm typecheck`, `pnpm lint`                                                                                                     | Pass. The first lint run flagged two React Compiler errors in the assistant (a synchronous `setState` in an effect, and `handleSubmit` called during render); both were restructured.                                                                                                                      |
-| `pnpm format:check`                                                                                                               | Pass, after formatting the four edited docs.                                                                                                                                                                                                                                                               |
-| `pnpm --filter @uniconnect/frontend test`                                                                                         | First run: 444/445, with one failure in the untouched audit-log list test. That test passed alone, and the rerun was **445/445** (35 suites).                                                                                                                                                              |
-| `playwright test e2e/ai.spec.ts`                                                                                                  | First run: 2/4. One failure was a route patch still in flight at the end of a test (fixed with `unrouteAll` in `afterEach`); the other was a "Question" label clash with the hidden overview (fixed by using the searchbox role). Rerun: **4/4**.                                                          |
-| `pnpm e2e` (full, Gemini blanked)                                                                                                 | 42 passed, 3 failed, 1 skipped (`ai.live`). Shell failed because it expected the old super admin nav; "Chatbot logs" was added to it. The two admin users tests timed out while `next dev` cold-compiled the route (the screenshot shows "Compiling…"). Rerun of `admin.spec` and `shell.spec`: **10/10**. |
-| `AI_LIVE=1 playwright test e2e/ai.live.spec.ts` (3 runs)                                                                          | **Failed.** The API had the key and model (the dashboard reported the assistant on), but each ask returned 503 `AI_UNAVAILABLE` after 10–15 s.                                                                                                                                                             |
-| Scratch probe of `src/lib/gemini.ts` with the configured model and `gemini-3.8-flash` (a process-only override; `.env` unchanged) | Google returned `503 UNAVAILABLE "This model is currently experiencing high demand"` or didn't answer within 10 s. One raw SDK call with a 40 s timeout got no answer.                                                                                                                                     |
+| Command                                                          | Result                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm e2e --workers=1` (2026-11-16)                              | **50 passed, 1 failed, 1 skipped** (20.6 min). The failure is `ai.spec` "the real API says when Gemini is not set up"                                                                                                                                              |
+| `pnpm e2e --workers=1 e2e/ai.spec.ts`, twice                     | 3 passed, the same test failed. The Playwright trace shows 503 `AI_UNAVAILABLE`, from the AI limiter failing closed                                                                                                                                                |
+| Read-only Redis probes (PING, `EVAL` of a TTL)                   | PING answers PONG, but `EVAL` and the app's writes get `ERR max requests limit exceeded. Limit: 500000, Usage: 500007`. **PING passing doesn't mean the database works.** `backend/.env` was last modified 2026-11-14, so it still holds the exhausted Upstash URL |
+| `worker-options.test.ts` and `redis-clients.test.ts`             | 6/6                                                                                                                                                                                                                                                                |
+| `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm build` | Pass                                                                                                                                                                                                                                                               |
+| `pnpm test`                                                      | Backend 442/442 (23 suites), frontend 453/453 (36 suites)                                                                                                                                                                                                          |
 
 ## Not covered
 
-- **A successful live Gemini answer.** See the results above: Google returned 503 "This model is currently experiencing high demand" or didn't answer within 10 s (and once not within 40 s), for both the configured model and `gemini-3.8-flash`. The API and UI handled it correctly (`AI_UNAVAILABLE`, inline message). Still unverified against the real model:
-  - answer quality
-  - latency (PRD target < 3 s)
-  - ChatLog writing
-  - PII stripping
-
-  Rerun when Google has capacity: `AI_LIVE=1 pnpm --filter @uniconnect/frontend exec playwright test e2e/ai.live.spec.ts`. Don't run it at the same time as `test:integration`.
-
-- **The 10 s Gemini abort** (`src/lib/gemini.ts`) may be too tight if the model is slow even when healthy. Decide only after a successful live run.
+- **Not run, deferred to the deployed stack (D48):** `ai.spec` "not set up", the p95 smoke (PRD §21, under 300 ms) and the live Gemini spec. None of them has passed yet.
+- The integration suite didn't run this session; its last run was 771/771 on 2026-11-15. The Redis-backed parts of e2e have only been run against the exhausted database.
+- The Render setup hasn't been deployed or tried: no Render or Vercel service exists yet.
 
 ## Exact next task
 
-Rerun the live spec until it passes, and record the latency in D45. Then, when the user asks, commit on `feat/chatbot-frontend` and merge into `development`.
+1. A person deploys:
+   - Neon `production`: `db:deploy`, then `db:seed`.
+   - Render Free Key Value: same region, `noeviction`.
+   - The Render web service: variables per `docs/DEPLOYMENT.md`.
+   - The Vercel project.
+2. Run the smoke checks and the deferred checks in `docs/DEPLOYMENT.md`:
+   - The assistant answers in under 3 s, and the chatbot log has no PII.
+   - Draft with AI works.
+   - p95 of the standard reads after warm-up.
+3. Record the results in DEPLOYMENT.md and TASKS, then tick the `main` checklist. Tag `v1.0.0` once green.
+4. For local work: point `backend/.env` `REDIS_URL` at a working Redis, then rerun `pnpm e2e --workers=1`.
 
 ## Recommended resume instruction
 
-> Read `CLAUDE.md`, this file and D45 in `docs/DECISIONS.md`. Run `AI_LIVE=1 pnpm --filter @uniconnect/frontend exec playwright test e2e/ai.live.spec.ts`, report the result, then commit when asked.
+> Read `CLAUDE.md`, this file, D48 and `docs/DEPLOYMENT.md` (Render free tier). Help with the Render + Vercel deploy, then run the deferred live checks and record them.
