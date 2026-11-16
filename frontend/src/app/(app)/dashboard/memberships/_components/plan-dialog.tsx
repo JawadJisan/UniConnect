@@ -94,10 +94,14 @@ export function PlanDialog({
       goToCheckout(result.redirect_url);
     } catch (err) {
       const e = err as ApiError;
-      // 409s (a checkout in progress, already a member, fee not set) and 502 carry a message
-      // written for the student; anything else gets a generic retry line.
+      // 409s (a checkout in progress, already a member, fee not set), 502 and 503
+      // PAYMENTS_UNAVAILABLE (payments switched off, D47) carry a message written for the
+      // student; anything else gets a generic retry line.
       setError(
-        e.status === 409 || e.status === 502 || e.status === 403
+        e.status === 409 ||
+          e.status === 502 ||
+          e.status === 403 ||
+          e.code === 'PAYMENTS_UNAVAILABLE'
           ? e.message
           : "Couldn't start the checkout. Try again.",
       );

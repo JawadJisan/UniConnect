@@ -223,6 +223,29 @@ describe('POST /api/v1/memberships', () => {
   });
 });
 
+describe('PAYMENT_GATEWAY=disabled (D47)', () => {
+  it('answers 503 PAYMENTS_UNAVAILABLE on purchase and renew and writes no rows', async () => {
+    const { id } = await activeMembership();
+    const before = {
+      memberships: await prisma.clubMembership.count(),
+      payments: await prisma.paymentTransaction.count(),
+    };
+    jest.replaceProperty(paymentGateway, 'enabled', false);
+
+    for (const res of [await buy('student2'), await renew('student', id)]) {
+      expect(res.status).toBe(503);
+      expect(res.body.error.code).toBe('PAYMENTS_UNAVAILABLE');
+    }
+    expect(await prisma.clubMembership.count()).toBe(before.memberships);
+    expect(await prisma.paymentTransaction.count()).toBe(before.payments);
+  });
+
+  it('still answers 401 and 403 before the 503', async () => {
+    jest.replaceProperty(paymentGateway, 'enabled', false);
+    expect((await send('post', '/api/v1/memberships').send({})).status).toBe(401);
+  });
+});
+
 // ---- IPN ----
 
 describe('POST /api/v1/memberships/payment/ipn', () => {

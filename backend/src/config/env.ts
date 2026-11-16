@@ -33,9 +33,10 @@ const envSchema = z
     CLOUDINARY_API_KEY: z.string().optional(),
     CLOUDINARY_API_SECRET: z.string().optional(),
 
-    // Membership payments (DECISIONS D32). `mock` stands in for SSLCommerz until the merchant
-    // account exists; it is refused in production. `sslcommerz` is not built yet.
-    PAYMENT_GATEWAY: z.enum(['mock', 'sslcommerz']).default('mock'),
+    // Membership payments (DECISIONS D32, D47). `mock` stands in for SSLCommerz until the merchant
+    // account exists; it is refused in production. `disabled` turns checkout off (503
+    // PAYMENTS_UNAVAILABLE) and is the production value until `sslcommerz` is built.
+    PAYMENT_GATEWAY: z.enum(['mock', 'sslcommerz', 'disabled']).default('mock'),
 
     // Gemini (PRD FR-AI; DECISIONS D44). Optional in development and test: without both, the
     // chatbot and the event description generator answer 503 AI_NOT_CONFIGURED. The model ID is

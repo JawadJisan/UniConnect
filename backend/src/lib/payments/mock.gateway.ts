@@ -23,6 +23,7 @@ import type {
 export function createMockGateway(frontendOrigin: string): PaymentGateway {
   return {
     name: 'mock',
+    enabled: true,
 
     async initSession(input: InitSessionInput): Promise<InitSessionResult> {
       const url = new URL('/dashboard/memberships/checkout/mock', frontendOrigin);

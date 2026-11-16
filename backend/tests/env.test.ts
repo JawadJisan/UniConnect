@@ -14,7 +14,7 @@ const production = {
   NODE_ENV: 'production',
   BETTER_AUTH_URL: 'https://uniconnect.example.com',
   FRONTEND_ORIGIN: 'https://uniconnect.example.com',
-  PAYMENT_GATEWAY: 'sslcommerz',
+  PAYMENT_GATEWAY: 'disabled',
   SMTP_HOST: 'smtp.example.com',
   SMTP_USER: 'u',
   SMTP_PASS: 'p',
@@ -43,6 +43,12 @@ describe('parseEnv', () => {
     expect(env.SECURE_COOKIES).toBe(true);
     expect(env.API_DOCS).toBe('off');
     expect(env.RUN_WORKERS_IN_API).toBe(false);
+  });
+
+  it('accepts PAYMENT_GATEWAY=disabled in production and still refuses mock (D47)', () => {
+    expect(parseEnv(production).PAYMENT_GATEWAY).toBe('disabled');
+    expect(problems({ ...production, PAYMENT_GATEWAY: 'mock' })).toEqual(['PAYMENT_GATEWAY']);
+    expect(problems({ ...production, PAYMENT_GATEWAY: 'off' })).toEqual(['PAYMENT_GATEWAY']);
   });
 
   it('defaults docs on and workers in-process outside production, with non-Secure http cookies', () => {
