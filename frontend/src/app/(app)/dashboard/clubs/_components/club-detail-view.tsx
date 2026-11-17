@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { ErrorState } from '@/components/ui/error-state';
 import { useClub } from '@/hooks/use-clubs';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import type { ApiError } from '@/lib/api';
 import { BackToClubs, ClubPage, ClubRecord, ClubRecordSkeleton } from './club-record';
 
@@ -18,6 +19,7 @@ export function ClubDetailView() {
 
 function ClubById({ id }: { id: number }) {
   const club = useClub(id);
+  useDocumentTitle(club.data?.name);
   if (club.isPending) return <ClubRecordSkeleton />;
   if (club.isError) {
     return (

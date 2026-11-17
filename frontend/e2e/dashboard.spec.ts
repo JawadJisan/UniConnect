@@ -30,6 +30,27 @@ test('a student sees the personal overview', async ({ page }) => {
   await expectNoHorizontalScroll(page);
 });
 
+test('the tab title follows client-side navigation (D50)', async ({ page }) => {
+  await logIn(page, USERS.student.email);
+  await expect(page).toHaveTitle('Overview — UniConnect');
+
+  const nav = page.getByRole('navigation', { name: 'Workspace' });
+  await nav.getByRole('link', { name: 'Browse events' }).click();
+  await expect(page).toHaveTitle('Events — UniConnect');
+  await nav.getByRole('link', { name: 'All clubs' }).click();
+  await expect(page).toHaveTitle('Clubs — UniConnect');
+
+  // A detail page names the tab after its record once it loads.
+  const firstClub = page
+    .getByRole('main')
+    .getByRole('link')
+    .filter({ has: page.getByRole('heading', { level: 2 }) })
+    .first();
+  const name = (await firstClub.getByRole('heading', { level: 2 }).innerText()).trim();
+  await firstClub.click();
+  await expect(page).toHaveTitle(`${name} — UniConnect`);
+});
+
 test('the super admin reads the system overview and the audit log', async ({ page }) => {
   test.setTimeout(150_000);
   await logIn(page, USERS.admin.email);

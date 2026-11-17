@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ErrorState } from '@/components/ui/error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEvent, useUploadEventPoster } from '@/hooks/use-events';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import type { ApiError } from '@/lib/api';
 import { formatEventWhen, isFull, seatsText, VISIBILITY_LABEL } from '@/lib/events';
 import { Panel } from '../../../_components/panel';
@@ -28,6 +29,7 @@ export function EventDetailView() {
 
 function EventById({ id }: { id: number }) {
   const event = useEvent(id);
+  useDocumentTitle(event.data?.title);
   if (event.isPending) return <EventRecordSkeleton />;
   if (event.isError) {
     return (

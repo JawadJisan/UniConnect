@@ -5,6 +5,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { ErrorState } from '@/components/ui/error-state';
 import { FormAlert } from '@/components/ui/form-alert';
 import { useMyClub } from '@/hooks/use-clubs';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import type { ApiError } from '@/lib/api';
 import { CLUBS_HREF } from '../../../_components/nav';
 import { ClubPage, ClubRecord, ClubRecordSkeleton } from './club-record';
@@ -15,6 +16,7 @@ import { ClubPage, ClubRecord, ClubRecordSkeleton } from './club-record';
  */
 export function MyClubView() {
   const club = useMyClub();
+  useDocumentTitle(club.data?.name);
   if (club.isPending) return <ClubRecordSkeleton />;
   if (club.isSuccess) return <ClubRecord club={club.data} />;
 
