@@ -34,7 +34,8 @@ pnpm --filter @uniconnect/backend test:integration   # Neon `test` branch; needs
 pnpm --filter @uniconnect/frontend test tests/setup.test.tsx -t "renders the home page"
 ```
 
-Prisma (from `backend/`, or with `pnpm --filter @uniconnect/backend`): `db:migrate` (`migrate dev`), `db:deploy`, `db:status`, `db:generate`, `db:studio`, `db:seed` (departments and the super admin, from the `SEED_*` env vars; safe to rerun); `exec prisma validate`. Backend `build`, `typecheck` and `test` run `prisma generate` first. The Prisma config reads `DATABASE_URL_UNPOOLED`, so `backend/.env` must exist (copy `backend/.env.example`, then run `neon checkout development` in `backend/` to fill in the database URLs). Schema changes follow the `db-migration` skill.
+Prisma (from `backend/`, or with `pnpm --filter @uniconnect/backend`): `db:migrate` (`migrate dev`), `db:deploy`, `db:status`, `db:generate`, `db:studio`, `db:seed` (departments and the super admin, from the `SEED_*` env vars; safe to rerun);
+`db:seed:test-users` (dev only: 10 students + 4 faculty per department, verified, password `Jawad@123`; list in `docs/testing/`); `exec prisma validate`. Backend `build`, `typecheck` and `test` run `prisma generate` first. The Prisma config reads `DATABASE_URL_UNPOOLED`, so `backend/.env` must exist (copy `backend/.env.example`, then run `neon checkout development` in `backend/` to fill in the database URLs). Schema changes follow the `db-migration` skill.
 
 Neon CLI (run in `backend/`): `neon checkout <branch>` switches branch and rewrites `DATABASE_URL`/`DATABASE_URL_UNPOOLED` in `backend/.env`. `neon branches list` shows branches.
 
