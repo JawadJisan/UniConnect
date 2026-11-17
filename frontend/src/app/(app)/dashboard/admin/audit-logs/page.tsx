@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { AuditLogsView } from './_components/audit-logs-view';
 
-export const metadata: Metadata = { title: 'Audit log' };
+export const metadata: Metadata = { title: 'Audit logs' };
 
 // Rendered only behind the client guard (D25), like the other workspace pages.
 export const instant = false;

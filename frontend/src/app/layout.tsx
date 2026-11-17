@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
+import { pageTitle, SITE_DESCRIPTION, SITE_NAME } from '@/lib/site';
 import { MotionProvider } from '@/providers/motion-provider';
 import { QueryProvider } from '@/providers/query-provider';
 import './globals.css';
@@ -17,9 +18,25 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ['latin'],
 });
 
+// Vercel sets the production host; locally the dev server's origin is close enough for OG URLs.
+const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : 'http://localhost:3000';
+
 export const metadata: Metadata = {
-  title: { default: 'UniConnect', template: '%s | UniConnect' },
-  description: 'University club management: memberships, events, announcements and blood donation.',
+  metadataBase: new URL(siteUrl),
+  title: { default: SITE_NAME, template: pageTitle('%s') },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    locale: 'en_US',
+  },
+  // Public pages may be indexed; the workspace and token pages opt out (D50).
+  robots: { index: true, follow: true },
 };
 
 export const viewport: Viewport = {

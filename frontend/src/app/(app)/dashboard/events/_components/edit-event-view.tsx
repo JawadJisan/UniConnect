@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { FormAlert } from '@/components/ui/form-alert';
 import { useEvent } from '@/hooks/use-events';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import type { ApiError } from '@/lib/api';
 import { EventLoadError, EventRecordSkeleton } from './event-detail-view';
 import { EventForm } from './event-form';
@@ -18,6 +19,7 @@ export function EditEventView() {
 
 function EditById({ id }: { id: number }) {
   const event = useEvent(id);
+  useDocumentTitle(event.data && `Edit · ${event.data.title}`);
   if (event.isPending) return <EventRecordSkeleton />;
   if (event.isError) {
     return (

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- UniConnect mark: a "U" over the wordmark's underscore, on the canvas (DESIGN.md tokens). -->
+  <rect x="0.5" y="0.5" width="31" height="31" rx="7.5" fill="#07060e" stroke="#ffffff" stroke-opacity="0.14"/>
+  <path d="M10 6.5v9a6 6 0 0 0 12 0v-9" fill="none" stroke="#a9a8ff" stroke-width="3.25" stroke-linecap="round"/>
+  <rect x="9" y="24.5" width="14" height="2.75" rx="1.375" fill="#5b57e8"/>
+</svg>

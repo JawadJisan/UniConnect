@@ -22,6 +22,7 @@ import {
   useEvent,
   useEventRegistrations,
 } from '@/hooks/use-events';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import type { ApiError } from '@/lib/api';
 import { formatDateTime, formatEventWhen, REGISTRATION_STATUS_META, seatsText } from '@/lib/events';
 import { FilterSelect, Pager } from '../../../_components/list-controls';
@@ -38,6 +39,7 @@ export function EventRegistrationsView() {
 
 function ForEvent({ id }: { id: number }) {
   const event = useEvent(id);
+  useDocumentTitle(event.data && `Registrations · ${event.data.title}`);
   if (event.isPending) return <EventRecordSkeleton />;
   if (event.isError) {
     return (

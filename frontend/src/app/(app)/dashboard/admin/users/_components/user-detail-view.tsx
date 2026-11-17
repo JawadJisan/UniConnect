@@ -10,6 +10,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
 import { useAdminUser, useRecomputeRole } from '@/hooks/use-admin-users';
+import { useDocumentTitle } from '@/hooks/use-document-title';
 import type { ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { ADMIN_USERS_HREF, ROLE_LABEL, USER_TYPE_LABEL } from '../../../../_components/nav';
@@ -42,6 +43,7 @@ function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const me = useProfile();
   const user = useAdminUser(id);
+  useDocumentTitle(user.data?.name);
 
   if (user.isPending) {
     return (
