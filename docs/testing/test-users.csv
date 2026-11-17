@@ -1,0 +1,43 @@
+Dept,Type,Name,Email,Password,Student ID,Session,Year,Semester,Blood,Phone
+CSE,faculty,Lutfi Habiba,cse.faculty01@uniconnect.test,Jawad@123,,,,,A+,01711000001
+CSE,faculty,Saleh Muhammad Maruf,cse.faculty02@uniconnect.test,Jawad@123,,,,,A-,01711000002
+CSE,faculty,Tasmi Sultana,cse.faculty03@uniconnect.test,Jawad@123,,,,,B+,01711000003
+CSE,faculty,Md. Shamim Hasan,cse.faculty04@uniconnect.test,Jawad@123,,,,,B-,01711000004
+CSE,student,Arif Rahman,cse.student01@uniconnect.test,Jawad@123,CSE-2025-001,2025-2026,1,2,AB+,01712000001
+CSE,student,Nusrat Jahan,cse.student02@uniconnect.test,Jawad@123,CSE-2024-002,2024-2025,2,1,AB-,01712000002
+CSE,student,Tanvir Ahmed,cse.student03@uniconnect.test,Jawad@123,CSE-2023-003,2023-2024,3,2,O+,01712000003
+CSE,student,Farhana Akter,cse.student04@uniconnect.test,Jawad@123,CSE-2022-004,2022-2023,4,1,O-,01712000004
+CSE,student,Rakibul Islam,cse.student05@uniconnect.test,Jawad@123,CSE-2025-005,2025-2026,1,2,A+,01712000005
+CSE,student,Sadia Afrin,cse.student06@uniconnect.test,Jawad@123,CSE-2024-006,2024-2025,2,1,A-,01712000006
+CSE,student,Imran Hossain,cse.student07@uniconnect.test,Jawad@123,CSE-2023-007,2023-2024,3,2,B+,01712000007
+CSE,student,Tasnim Rahman,cse.student08@uniconnect.test,Jawad@123,CSE-2022-008,2022-2023,4,1,B-,01712000008
+CSE,student,Fahim Shahriar,cse.student09@uniconnect.test,Jawad@123,CSE-2025-009,2025-2026,1,2,AB+,01712000009
+CSE,student,Riya Chowdhury,cse.student10@uniconnect.test,Jawad@123,CSE-2024-010,2024-2025,2,1,AB-,01712000010
+ECE,faculty,Mahfuza Ferdousi,ece.faculty01@uniconnect.test,Jawad@123,,,,,O+,01721000001
+ECE,faculty,Runa Rukshana Khan,ece.faculty02@uniconnect.test,Jawad@123,,,,,O-,01721000002
+ECE,faculty,Mohammad Liton Hossain,ece.faculty03@uniconnect.test,Jawad@123,,,,,A+,01721000003
+ECE,faculty,Md. Rakib Hossain,ece.faculty04@uniconnect.test,Jawad@123,,,,,A-,01721000004
+ECE,student,Sabbir Hossain,ece.student01@uniconnect.test,Jawad@123,ECE-2025-001,2025-2026,1,2,B+,01722000001
+ECE,student,Jannatul Ferdous,ece.student02@uniconnect.test,Jawad@123,ECE-2024-002,2024-2025,2,1,B-,01722000002
+ECE,student,Rifat Karim,ece.student03@uniconnect.test,Jawad@123,ECE-2023-003,2023-2024,3,2,AB+,01722000003
+ECE,student,Mim Akter,ece.student04@uniconnect.test,Jawad@123,ECE-2022-004,2022-2023,4,1,AB-,01722000004
+ECE,student,Asif Iqbal,ece.student05@uniconnect.test,Jawad@123,ECE-2025-005,2025-2026,1,2,O+,01722000005
+ECE,student,Nadia Islam,ece.student06@uniconnect.test,Jawad@123,ECE-2024-006,2024-2025,2,1,O-,01722000006
+ECE,student,Towhid Alam,ece.student07@uniconnect.test,Jawad@123,ECE-2023-007,2023-2024,3,2,A+,01722000007
+ECE,student,Sumaiya Khan,ece.student08@uniconnect.test,Jawad@123,ECE-2022-008,2022-2023,4,1,A-,01722000008
+ECE,student,Zahid Hasan,ece.student09@uniconnect.test,Jawad@123,ECE-2025-009,2025-2026,1,2,B+,01722000009
+ECE,student,Anika Tabassum,ece.student10@uniconnect.test,Jawad@123,ECE-2024-010,2024-2025,2,1,B-,01722000010
+BBA,faculty,Mahedi Hasan,bba.faculty01@uniconnect.test,Jawad@123,,,,,AB+,01731000001
+BBA,faculty,S. M. Ziaul Hasan,bba.faculty02@uniconnect.test,Jawad@123,,,,,AB-,01731000002
+BBA,faculty,Nafia Laila,bba.faculty03@uniconnect.test,Jawad@123,,,,,O+,01731000003
+BBA,faculty,Tania Akther,bba.faculty04@uniconnect.test,Jawad@123,,,,,O-,01731000004
+BBA,student,Rahim Uddin,bba.student01@uniconnect.test,Jawad@123,BBA-2025-001,2025-2026,1,2,A+,01732000001
+BBA,student,Tanjila Rahman,bba.student02@uniconnect.test,Jawad@123,BBA-2024-002,2024-2025,2,1,A-,01732000002
+BBA,student,Sajid Mahmud,bba.student03@uniconnect.test,Jawad@123,BBA-2023-003,2023-2024,3,2,B+,01732000003
+BBA,student,Lamia Haque,bba.student04@uniconnect.test,Jawad@123,BBA-2022-004,2022-2023,4,1,B-,01732000004
+BBA,student,Nayeem Chowdhury,bba.student05@uniconnect.test,Jawad@123,BBA-2025-005,2025-2026,1,2,AB+,01732000005
+BBA,student,Farzana Yasmin,bba.student06@uniconnect.test,Jawad@123,BBA-2024-006,2024-2025,2,1,AB-,01732000006
+BBA,student,Rashed Kabir,bba.student07@uniconnect.test,Jawad@123,BBA-2023-007,2023-2024,3,2,O+,01732000007
+BBA,student,Moumita Das,bba.student08@uniconnect.test,Jawad@123,BBA-2022-008,2022-2023,4,1,O-,01732000008
+BBA,student,Shafiq Ahmed,bba.student09@uniconnect.test,Jawad@123,BBA-2025-009,2025-2026,1,2,A+,01732000009
+BBA,student,Israt Jahan,bba.student10@uniconnect.test,Jawad@123,BBA-2024-010,2024-2025,2,1,A-,01732000010
