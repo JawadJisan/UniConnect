@@ -52,13 +52,15 @@ test.describe('student profile', () => {
     expect(patched).toBe(false);
   });
 
-  test('avatar: a wrong type is refused locally, a good image previews then uploads', async ({
+  test('avatar: a wrong type is refused locally, a good image is cropped, previewed, uploaded', async ({
     page,
   }) => {
     let uploads = 0;
+    let sent = '';
     const url = 'https://res.cloudinary.com/demo/image/upload/v1/e2e-avatar.png';
     await page.route('**/api/v1/users/me/avatar', async (route) => {
       uploads += 1;
+      sent = route.request().postDataBuffer()?.toString('latin1') ?? '';
       const me = await (await page.request.get('/api/v1/users/me')).json();
       await route.fulfill({
         json: { success: true, message: 'Avatar updated.', data: { ...me.data, avatar_url: url } },
@@ -79,6 +81,15 @@ test.describe('student profile', () => {
     expect(uploads).toBe(0);
 
     await input.setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PNG });
+    // The crop dialog (D49): a square with a round guide, zoom and rotate controls.
+    const crop = page.getByRole('dialog', { name: 'Crop your photo' });
+    await expect(crop).toBeVisible();
+    await expect(crop.getByLabel('Zoom', { exact: true })).toBeVisible();
+    await crop.getByRole('button', { name: 'Zoom in' }).click();
+    await crop.getByRole('button', { name: 'Rotate right 90 degrees' }).click();
+    await crop.getByRole('button', { name: 'Apply crop' }).click();
+    await expect(crop).toBeHidden();
+    expect(uploads).toBe(0);
     const zone = page.getByRole('region', { name: 'Photo and identity' });
     await expect(zone.locator('img[src^="blob:"]')).toBeVisible();
     expect(uploads).toBe(0);
@@ -86,6 +97,9 @@ test.describe('student profile', () => {
     await page.getByRole('button', { name: 'Upload photo' }).click();
     await expect(page.getByText('Profile photo updated.')).toBeVisible();
     expect(uploads).toBe(1);
+    // What went up is the browser-encoded crop (WebP in Edge), not the original PNG.
+    expect(sent).toContain('filename="me.webp"');
+    expect(sent).toContain('Content-Type: image/webp');
     await expect(zone.locator(`img[src="${url}"]`)).toBeVisible();
   });
 });
