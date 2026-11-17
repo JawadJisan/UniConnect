@@ -23,9 +23,10 @@ export function ClubLogoUpload({ club }: { club: ClubDetail }) {
         busy={upload.isPending}
         noun="logo"
         changeLabel="Change the club logo"
-        note="Fitted inside 512 px, never cropped."
+        note="Cropped to a square; transparency is kept."
         successMessage="Club logo updated."
-        fit="contain"
+        output={{ width: 512, height: 512 }}
+        keepAlpha
       />
     </Panel>
   );

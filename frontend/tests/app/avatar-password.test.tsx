@@ -6,6 +6,7 @@ import {
 import { PasswordForm } from '@/app/(app)/dashboard/profile/_components/password-form';
 import { toast } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
+import { cropToFile } from '@/lib/crop-image';
 import { authClient, resetAuthClient } from '../mocks/auth-client';
 import { axiosError, fill, pending, renderWithQuery } from '../auth/utils';
 import { fakeFile, ok, studentProfile } from './utils';
@@ -14,6 +15,9 @@ jest.mock('@/components/ui/sonner', () => ({
   toast: { success: jest.fn(), error: jest.fn() },
   Toaster: () => null,
 }));
+// The crop step is covered in image-upload.test.tsx; here it hands back a fixed file.
+jest.mock('@/lib/crop-image', () => ({ cropToFile: jest.fn() }));
+const cropped = new File([new Uint8Array(2048)], 'me.webp', { type: 'image/webp' });
 
 const patch = jest.spyOn(api, 'patch');
 const createObjectURL = jest.fn(() => 'blob:preview-1');
@@ -28,6 +32,7 @@ beforeEach(() => {
   createObjectURL.mockClear();
   revokeObjectURL.mockClear();
   jest.mocked(toast.success).mockReset();
+  jest.mocked(cropToFile).mockReset().mockResolvedValue(cropped);
 });
 
 const MB = 1024 * 1024;
@@ -35,6 +40,14 @@ const MB = 1024 * 1024;
 function pick(file: File) {
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
   fireEvent.change(input, { target: { files: [file] } });
+}
+
+/** Picks a file and accepts the crop dialog's default framing. */
+async function pickAndCrop(file: File) {
+  pick(file);
+  await screen.findByRole('dialog', { name: 'Crop your photo' });
+  fireEvent.click(screen.getByRole('button', { name: 'Apply crop' }));
+  await screen.findByRole('button', { name: 'Upload photo' });
 }
 
 describe('avatar file checks', () => {
@@ -61,7 +74,7 @@ describe('avatar upload', () => {
     renderWithQuery(<AvatarUpload profile={studentProfile()} />);
     const zone = screen.getByRole('button', { name: 'Add a photo' });
     expect(document.getElementById(zone.getAttribute('aria-describedby')!)?.textContent).toContain(
-      'up to 5 MB',
+      'up to 20 MB',
     );
   });
 
@@ -73,7 +86,7 @@ describe('avatar upload', () => {
     expect(patch).not.toHaveBeenCalled();
   });
 
-  it('previews locally, uploads on confirm and confirms with a toast', async () => {
+  it('crops to a round-guided square, previews locally, uploads on confirm and toasts', async () => {
     const url = 'https://res.cloudinary.com/demo/image/upload/v2/a.jpg';
     patch.mockResolvedValue(ok(studentProfile({ avatar_url: url })));
     renderWithQuery(<AvatarUpload profile={studentProfile()} />);
@@ -81,6 +94,14 @@ describe('avatar upload', () => {
     const file = fakeFile('me.jpg', 'image/jpeg');
     pick(file);
     expect(createObjectURL).toHaveBeenCalledWith(file);
+    const area = await screen.findByRole('img', { name: 'Crop area for the photo' });
+    expect(area.getAttribute('data-aspect')).toBe('1');
+    expect(area.getAttribute('data-shape')).toBe('round');
+    fireEvent.click(screen.getByRole('button', { name: 'Apply crop' }));
+    await screen.findByRole('button', { name: 'Upload photo' });
+
+    expect(jest.mocked(cropToFile).mock.calls[0]![3]).toEqual({ width: 512, height: 512 });
+    expect(createObjectURL).toHaveBeenLastCalledWith(cropped);
     expect(document.querySelector('img')?.getAttribute('src')).toBe('blob:preview-1');
     expect(patch).not.toHaveBeenCalled();
 
@@ -89,7 +110,7 @@ describe('avatar upload', () => {
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
     const [path, body] = patch.mock.calls[0]!;
     expect(path).toBe('/v1/users/me/avatar');
-    expect((body as FormData).get('avatar')).toBe(file);
+    expect((body as FormData).get('avatar')).toBe(cropped);
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Profile photo updated.'));
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
   });
@@ -97,7 +118,7 @@ describe('avatar upload', () => {
   it('shows the upload state and locks the zone while uploading', async () => {
     patch.mockImplementation(pending);
     renderWithQuery(<AvatarUpload profile={studentProfile()} />);
-    pick(fakeFile('me.jpg', 'image/jpeg'));
+    await pickAndCrop(fakeFile('me.jpg', 'image/jpeg'));
     fireEvent.click(screen.getByRole('button', { name: 'Upload photo' }));
 
     const zone = await screen.findByRole('button', { name: /^Choose a different photo/ });
@@ -114,16 +135,16 @@ describe('avatar upload', () => {
   ])('explains %s from the server', async (code, status, message) => {
     patch.mockRejectedValue(axiosError(status, { success: false, error: { code, message: 'x' } }));
     renderWithQuery(<AvatarUpload profile={studentProfile()} />);
-    pick(fakeFile('me.jpg', 'image/jpeg'));
+    await pickAndCrop(fakeFile('me.jpg', 'image/jpeg'));
     fireEvent.click(screen.getByRole('button', { name: 'Upload photo' }));
 
     expect((await screen.findByRole('alert')).textContent).toBe(message);
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it('cancel drops the preview and frees it', () => {
+  it('cancel drops the preview and frees it', async () => {
     renderWithQuery(<AvatarUpload profile={studentProfile()} />);
-    pick(fakeFile('me.jpg', 'image/jpeg'));
+    await pickAndCrop(fakeFile('me.jpg', 'image/jpeg'));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
@@ -131,13 +152,14 @@ describe('avatar upload', () => {
     expect(screen.getByRole('button', { name: 'Add a photo' })).toBeTruthy();
   });
 
-  it('accepts a dropped file', () => {
+  it('accepts a dropped file into the cropper', async () => {
     renderWithQuery(<AvatarUpload profile={studentProfile()} />);
     const file = fakeFile('drop.png', 'image/png');
     fireEvent.drop(screen.getByRole('button', { name: 'Add a photo' }), {
       dataTransfer: { files: [file] },
     });
     expect(createObjectURL).toHaveBeenCalledWith(file);
+    expect(await screen.findByRole('dialog', { name: 'Crop your photo' })).toBeTruthy();
   });
 });
 
