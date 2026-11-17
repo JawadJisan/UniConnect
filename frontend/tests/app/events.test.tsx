@@ -207,6 +207,14 @@ describe('browse events', () => {
 });
 
 describe('event page: registration', () => {
+  it('names the tab after the event once it loads (D50)', async () => {
+    serve();
+    document.title = 'Event — UniConnect';
+    renderPage(<EventDetailView />);
+    await screen.findByRole('heading', { name: 'Hack Night' });
+    expect(document.title).toBe('Hack Night — UniConnect');
+  });
+
   it('registers and confirms with a toast', async () => {
     serve();
     post.mockResolvedValue(ok({ id: 1, status: 'registered' }));
