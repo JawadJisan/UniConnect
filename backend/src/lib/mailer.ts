@@ -15,6 +15,10 @@ const transport = env.SMTP_HOST
       port: env.SMTP_PORT,
       secure: env.SMTP_PORT === 465,
       auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined,
+      // Fail fast when the port is blocked (nodemailer's default connect timeout is 2 min).
+      connectionTimeout: 15_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 30_000,
     })
   : null;
 
