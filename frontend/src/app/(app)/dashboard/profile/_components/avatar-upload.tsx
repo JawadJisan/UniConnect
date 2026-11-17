@@ -20,6 +20,8 @@ export function AvatarUpload({ profile }: { profile: UserProfile }) {
       noun="photo"
       changeLabel="Change your photo"
       note="Cropped to a square."
+      cropShape="round"
+      output={{ width: 512, height: 512 }}
       successMessage="Profile photo updated."
     />
   );

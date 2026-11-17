@@ -25,8 +25,9 @@ const AVATAR_OPTIONS: UploadApiOptions = {
   // CDN copy is invalidated. The URL changes anyway because it carries the version.
   overwrite: true,
   invalidate: true,
-  // Stored at a bounded size; delivery picks the format and quality.
-  transformation: [{ width: 512, height: 512, crop: 'fill', gravity: 'face' }],
+  // The browser already cropped it to a framed square (D49); `fill` keeps any other client
+  // to the same shape, centred, and delivery picks the format and quality.
+  transformation: [{ width: 512, height: 512, crop: 'fill', gravity: 'center' }],
   allowed_formats: ['jpg', 'png', 'webp'],
 };
 
@@ -36,8 +37,8 @@ const CLUB_LOGO_OPTIONS: UploadApiOptions = {
   // One logo per club, replaced in place like avatars.
   overwrite: true,
   invalidate: true,
-  // Logos keep their whole shape: fit inside 512x512, no crop.
-  transformation: [{ width: 512, height: 512, crop: 'limit' }],
+  // A square, like the club logo box; the browser crop already has this shape (D49).
+  transformation: [{ width: 512, height: 512, crop: 'fill', gravity: 'center' }],
   allowed_formats: ['jpg', 'png', 'webp'],
 };
 
@@ -47,19 +48,45 @@ const EVENT_POSTER_OPTIONS: UploadApiOptions = {
   // One poster per event, replaced in place like logos.
   overwrite: true,
   invalidate: true,
-  // Posters keep their shape: fit inside 1600x1600, no crop.
-  transformation: [{ width: 1600, height: 1600, crop: 'limit' }],
+  // 16:9, the event card's shape; the browser crop already has this shape (D49).
+  transformation: [{ width: 1600, height: 900, crop: 'fill', gravity: 'center' }],
   allowed_formats: ['jpg', 'png', 'webp'],
 };
+
+/** A failed upload, with Cloudinary's HTTP code when it sent one. */
+class CloudinaryUploadError extends Error {
+  constructor(
+    message: string,
+    readonly httpCode?: number,
+  ) {
+    super(message);
+  }
+}
 
 function upload(buffer: Buffer, options: UploadApiOptions): Promise<UploadApiResponse> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
-      if (err || !result) reject(new Error(err?.message ?? 'empty upload response'));
-      else resolve(result);
+      if (err || !result) {
+        reject(new CloudinaryUploadError(err?.message ?? 'empty upload response', err?.http_code));
+      } else resolve(result);
     });
     stream.end(buffer);
   });
+}
+
+/**
+ * 401 and 403 mean Cloudinary refused our credentials (a wrong key, secret or cloud name), so
+ * every upload will fail until the env is fixed. Say so plainly in the log (D49).
+ */
+function failureLog(label: string, err: Error): string {
+  const code = err instanceof CloudinaryUploadError ? err.httpCode : undefined;
+  if (code === 401 || code === 403) {
+    return (
+      `${label} upload failed: Cloudinary rejected the credentials (HTTP ${code}): ${err.message}. ` +
+      'Check CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET (Settings -> API Keys).'
+    );
+  }
+  return `${label} upload failed: ${err.message}`;
 }
 
 async function uploadImage(
@@ -80,7 +107,7 @@ async function uploadImage(
     });
   } catch (err) {
     // Message only: never log the client config, which holds the API secret.
-    logger.error(`${label} upload failed: ${(err as Error).message}`);
+    logger.error(failureLog(label, err as Error));
     throw new AppError(502, 'UPLOAD_FAILED', 'The image could not be uploaded. Try again.');
   }
 }

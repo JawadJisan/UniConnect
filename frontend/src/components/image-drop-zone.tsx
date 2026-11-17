@@ -1,25 +1,48 @@
 'use client';
 
 import { AVATAR_MAX_BYTES, AVATAR_MIME_TYPES } from '@uniconnect/shared';
-import { ImageUpIcon, Loader2Icon } from 'lucide-react';
+import { CropIcon, ImageUpIcon, Loader2Icon } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from 'react';
+import { ImageCropDialog } from '@/components/image-crop-dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/sonner';
 import type { ApiError } from '@/lib/api';
+import type { OutputSize } from '@/lib/crop-image';
 import { cn } from '@/lib/utils';
 
-// Decision #21 limits, shared by every image upload (avatars, club logos).
+// Decision #21 limits, shared by every image upload (avatars, club logos, posters). The
+// server limit applies to the cropped file we send, which is always far smaller.
 const MAX_MB = AVATAR_MAX_BYTES / (1024 * 1024);
 const ACCEPT = AVATAR_MIME_TYPES.join(',');
+// The original is only read in the browser to be cropped, so a larger photo is fine (D49).
+export const SOURCE_MAX_BYTES = 20 * 1024 * 1024;
+const SOURCE_MAX_MB = SOURCE_MAX_BYTES / (1024 * 1024);
 
-/** Why a chosen file can't be used, checked with the shared limits before any upload. */
+const megabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1);
+
+function typeProblem(file: File): string | null {
+  return (AVATAR_MIME_TYPES as readonly string[]).includes(file.type)
+    ? null
+    : 'Choose a JPEG, PNG or WebP image.';
+}
+
+/** Why a file can't be uploaded as is, checked with the shared limits before any upload. */
 export function imageFileProblem(file: File): string | null {
-  if (!(AVATAR_MIME_TYPES as readonly string[]).includes(file.type)) {
-    return 'Choose a JPEG, PNG or WebP image.';
-  }
+  const wrongType = typeProblem(file);
+  if (wrongType) return wrongType;
   if (file.size > AVATAR_MAX_BYTES) {
-    return `That image is ${(file.size / (1024 * 1024)).toFixed(1)} MB. Choose one up to ${MAX_MB} MB.`;
+    return `That image is ${megabytes(file.size)} MB. Choose one up to ${MAX_MB} MB.`;
+  }
+  return null;
+}
+
+/** Why a chosen file can't be opened in the cropper. */
+export function sourceFileProblem(file: File): string | null {
+  const wrongType = typeProblem(file);
+  if (wrongType) return wrongType;
+  if (file.size > SOURCE_MAX_BYTES) {
+    return `That image is ${megabytes(file.size)} MB. Choose one up to ${SOURCE_MAX_MB} MB.`;
   }
   return null;
 }
@@ -44,6 +67,16 @@ function uploadProblem(err: ApiError, noun: string): string {
   }
 }
 
+/** An object URL that is released when it is replaced or the component goes away. */
+function useObjectUrl() {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!url) return;
+    return () => URL.revokeObjectURL(url);
+  }, [url]);
+  return [url, (blob: Blob | null) => setUrl(blob ? URL.createObjectURL(blob) : null)] as const;
+}
+
 interface ImageDropZoneProps {
   /** The stored image URL, or null. */
   current: string | null;
@@ -59,14 +92,23 @@ interface ImageDropZoneProps {
   /** Caption under the zone, after the type and size limits. */
   note: string;
   successMessage: string;
-  /** `cover` crops to the square (avatars), `contain` keeps the whole image (logos). */
-  fit?: 'cover' | 'contain';
+  /** Width / height of the stored image and of the zone: 1 (default) or 16 / 9. */
+  aspect?: number;
+  /** The cropper's guide: a circle for avatars, a rectangle otherwise. */
+  cropShape?: 'round' | 'rect';
+  /** The exact pixel size of the uploaded file. */
+  output?: OutputSize;
+  /** Keep transparency (club logos). */
+  keepAlpha?: boolean;
 }
 
+const SQUARE_512: OutputSize = { width: 512, height: 512 };
+
 /**
- * Drop or pick an image, see it in place before anything is sent, then upload. The zone is a
- * real button (Enter or Space opens the picker), and the shared type and size limits are
- * checked before the network (DESIGN.md §7, "Image drop zone").
+ * Drop or pick an image, frame it in the crop dialog, see it in place, then upload. The zone
+ * is a real button (Enter or Space opens the picker), the shared type limits are checked
+ * before the cropper opens, and what is sent is the cropped image at its display shape
+ * (DESIGN.md §7, "Image drop zone"; DECISIONS D49).
  */
 export function ImageDropZone({
   current,
@@ -77,38 +119,66 @@ export function ImageDropZone({
   changeLabel,
   note,
   successMessage,
-  fit = 'cover',
+  aspect = 1,
+  cropShape = 'rect',
+  output = SQUARE_512,
+  keepAlpha = false,
 }: ImageDropZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const hintId = useId();
+  // The picked original, kept so the crop can be adjusted again.
+  const [source, setSource] = useState<File | null>(null);
+  const [sourceUrl, setSourceBlob] = useObjectUrl();
+  // The cropped file that will be uploaded, and its preview.
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreviewBlob] = useObjectUrl();
+  const [cropping, setCropping] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
-  // Each preview URL is released when it is replaced or the component goes away.
-  useEffect(() => {
-    if (!preview) return;
-    return () => URL.revokeObjectURL(preview);
-  }, [preview]);
+  function resetInput() {
+    if (inputRef.current) inputRef.current.value = '';
+  }
 
   function choose(next: File | undefined) {
     if (!next) return;
-    const why = imageFileProblem(next);
+    const why = sourceFileProblem(next);
+    if (why) {
+      setProblem(why);
+      resetInput();
+      return;
+    }
+    setProblem(null);
+    setSource(next);
+    setSourceBlob(next);
+    setCropping(true);
+  }
+
+  function clear() {
+    setSource(null);
+    setSourceBlob(null);
+    setFile(null);
+    setPreviewBlob(null);
+    setProblem(null);
+    setCropping(false);
+    resetInput();
+  }
+
+  function cancelCrop() {
+    setCropping(false);
+    // Cancelling the first crop drops the pick; cancelling an adjustment keeps the last crop.
+    if (!file) clear();
+  }
+
+  function applyCrop(cropped: File) {
+    setCropping(false);
+    const why = imageFileProblem(cropped);
     if (why) {
       setProblem(why);
       return;
     }
-    setProblem(null);
-    setFile(next);
-    setPreview(URL.createObjectURL(next));
-  }
-
-  function clear() {
-    setFile(null);
-    setPreview(null);
-    setProblem(null);
-    if (inputRef.current) inputRef.current.value = '';
+    setFile(cropped);
+    setPreviewBlob(cropped);
   }
 
   async function send() {
@@ -130,6 +200,7 @@ export function ImageDropZone({
   }
 
   const shown = preview ?? current;
+  const square = aspect === 1;
 
   return (
     <div className="flex flex-col gap-3">
@@ -145,8 +216,11 @@ export function ImageDropZone({
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
+        style={square ? undefined : { aspectRatio: String(aspect) }}
         className={cn(
-          'group/zone relative flex aspect-square w-full max-w-56 items-center justify-center self-center overflow-hidden rounded-xl border border-dashed transition-[border-color,background-color] duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none disabled:cursor-progress',
+          'group/zone relative flex w-full items-center justify-center self-center overflow-hidden border border-dashed transition-[border-color,background-color] duration-(--duration-fast) focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card focus-visible:outline-none disabled:cursor-progress',
+          square ? 'aspect-square max-w-56' : 'max-w-xl',
+          cropShape === 'round' ? 'rounded-full' : 'rounded-xl',
           dragging
             ? 'border-brand-text bg-brand-tint'
             : 'border-border-strong bg-surface-2 hover:border-input',
@@ -156,13 +230,14 @@ export function ImageDropZone({
           {preview ? `Choose a different ${noun}` : shown ? changeLabel : `Add a ${noun}`}
         </span>
         {shown ? (
+          // The stored image already has this shape; cover only trims older uploads.
           <Image
             src={shown}
             alt=""
             fill
             unoptimized
-            sizes="224px"
-            className={fit === 'cover' ? 'object-cover' : 'object-contain p-4'}
+            sizes={square ? '224px' : '576px'}
+            className="object-cover"
           />
         ) : (
           fallback
@@ -178,7 +253,7 @@ export function ImageDropZone({
           )}
         >
           <ImageUpIcon className="size-3.5" />
-          {dragging ? 'Drop to preview' : shown ? `Change ${noun}` : `Drop or choose a ${noun}`}
+          {dragging ? 'Drop to crop' : shown ? `Change ${noun}` : `Drop or choose a ${noun}`}
         </span>
         {busy ? (
           <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/70 text-xs text-foreground">
@@ -199,7 +274,7 @@ export function ImageDropZone({
       />
 
       <p id={hintId} className="text-center text-xs text-fg-tertiary">
-        JPEG, PNG or WebP, up to {MAX_MB} MB. {note}
+        JPEG, PNG or WebP, up to {SOURCE_MAX_MB} MB. {note}
       </p>
 
       {problem ? (
@@ -209,14 +284,33 @@ export function ImageDropZone({
       ) : null}
 
       {file ? (
-        <div className="flex items-center justify-center gap-2" aria-live="polite">
+        <div className="flex flex-wrap items-center justify-center gap-2" aria-live="polite">
           <Button variant="ghost" size="sm" onClick={clear} disabled={busy}>
             Cancel
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setCropping(true)} disabled={busy}>
+            <CropIcon data-icon="inline-start" />
+            Adjust crop
           </Button>
           <Button size="sm" onClick={send} disabled={busy}>
             {busy ? 'Uploading…' : `Upload ${noun}`}
           </Button>
         </div>
+      ) : null}
+
+      {cropping && sourceUrl ? (
+        <ImageCropDialog
+          open
+          src={sourceUrl}
+          aspect={aspect}
+          cropShape={cropShape}
+          output={output}
+          keepAlpha={keepAlpha}
+          fileName={source?.name ?? noun}
+          noun={noun}
+          onCancel={cancelCrop}
+          onApply={applyCrop}
+        />
       ) : null}
     </div>
   );

@@ -196,9 +196,10 @@ function PosterPanel({ event }: { event: EventDetail }) {
         busy={upload.isPending}
         noun="poster"
         changeLabel="Change the event poster"
-        note="Fitted inside 1600 px, never cropped."
+        note="Cropped to 16:9, the shape shown on event cards."
         successMessage="Poster updated."
-        fit="contain"
+        aspect={16 / 9}
+        output={{ width: 1600, height: 900 }}
       />
     </Panel>
   );

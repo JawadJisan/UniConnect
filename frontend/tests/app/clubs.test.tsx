@@ -7,6 +7,7 @@ import { Workspace } from '@/app/(app)/_components/workspace';
 import { toast } from '@/components/ui/sonner';
 import { api } from '@/lib/api';
 import { canEditClub } from '@/lib/club-access';
+import { cropToFile } from '@/lib/crop-image';
 import { formatBdt } from '@/lib/format';
 import { resetAuthClient, setSession } from '../mocks/auth-client';
 import { axiosError, fill, pending, renderWithQuery } from '../auth/utils';
@@ -14,6 +15,8 @@ import { facultyProfile, fakeFile, ok, studentProfile, superAdminProfile } from 
 
 let params: Record<string, string> = {};
 
+// The crop step is covered in image-upload.test.tsx.
+jest.mock('@/lib/crop-image', () => ({ cropToFile: jest.fn() }));
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), refresh: jest.fn() }),
   usePathname: () => '/dashboard/clubs',
@@ -336,25 +339,32 @@ describe('club logo upload', () => {
     await screen.findByRole('button', { name: 'Add a logo' });
     pick(fakeFile('a.gif', 'image/gif'));
     expect(screen.getByRole('alert').textContent).toBe('Choose a JPEG, PNG or WebP image.');
-    pick(fakeFile('big.png', 'image/png', 6 * 1024 * 1024));
-    expect(screen.getByRole('alert').textContent).toContain('Choose one up to 5 MB.');
+    pick(fakeFile('big.png', 'image/png', 21 * 1024 * 1024));
+    expect(screen.getByRole('alert').textContent).toContain('Choose one up to 20 MB.');
     expect(patch).not.toHaveBeenCalled();
   });
 
-  it('previews, uploads the file in the logo field and confirms', async () => {
+  it('crops to a square keeping transparency, then uploads it in the logo field', async () => {
     serve({ me: superAdminProfile() });
     patch.mockResolvedValue(ok(club({ logo_url: 'https://res.cloudinary.com/demo/c.png' })));
     renderPage(<ClubDetailView />);
     await screen.findByRole('button', { name: 'Add a logo' });
 
-    const file = fakeFile('logo.png', 'image/png');
-    pick(file);
-    fireEvent.click(screen.getByRole('button', { name: 'Upload logo' }));
+    const cropped = new File([new Uint8Array(512)], 'logo.webp', { type: 'image/webp' });
+    jest.mocked(cropToFile).mockResolvedValue(cropped);
+    pick(fakeFile('logo.png', 'image/png'));
+    await screen.findByRole('dialog', { name: 'Crop your logo' });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply crop' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Upload logo' }));
+    expect(jest.mocked(cropToFile).mock.calls[0]!.slice(3)).toEqual([
+      { width: 512, height: 512 },
+      { keepAlpha: true, name: 'logo.png' },
+    ]);
 
     await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
     const [path, body] = patch.mock.calls[0]!;
     expect(path).toBe('/v1/clubs/3/logo');
-    expect((body as FormData).get('logo')).toBe(file);
+    expect((body as FormData).get('logo')).toBe(cropped);
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Club logo updated.'));
   });
 });

@@ -11,6 +11,8 @@ const config = createJestConfig({
     // createAuthClient() returns the double in tests/mocks/auth-client.ts. (Mapping
     // '@/lib/auth-client' itself doesn't work: next/jest rewrites '@/' before mapping.)
     '^better-auth/react$': '<rootDir>/tests/mocks/better-auth-react.ts',
+    // jsdom has no layout or canvas for the real cropper (DECISIONS D49).
+    '^react-easy-crop$': '<rootDir>/tests/mocks/react-easy-crop.tsx',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
 });

@@ -19,9 +19,9 @@ const production = {
   SMTP_USER: 'u',
   SMTP_PASS: 'p',
   SMTP_FROM: 'UniConnect <no-reply@example.com>',
-  CLOUDINARY_CLOUD_NAME: 'c',
-  CLOUDINARY_API_KEY: 'k',
-  CLOUDINARY_API_SECRET: 's',
+  CLOUDINARY_CLOUD_NAME: 'demo-cloud',
+  CLOUDINARY_API_KEY: '123456789012345',
+  CLOUDINARY_API_SECRET: 'aBcD-ef_123',
   GEMINI_API_KEY: 'g',
   GEMINI_MODEL: 'm',
   PROXY_SHARED_SECRET: 'p'.repeat(32),
@@ -79,6 +79,23 @@ describe('parseEnv', () => {
   it('refuses a hosted deploy that is not NODE_ENV=production (L3)', () => {
     expect(problems({ ...base, RAILWAY_ENVIRONMENT_NAME: 'production' })).toEqual(['NODE_ENV']);
     expect(problems({ ...base, RENDER: 'true' })).toEqual(['NODE_ENV']);
+  });
+
+  it('refuses Cloudinary values that are not the console API key, secret and cloud name (D49)', () => {
+    // An OAuth app's client ID is a UUID, not an API key; Cloudinary answers "Invalid api_key".
+    expect(
+      problems({ ...production, CLOUDINARY_API_KEY: '7df21a7f-5576-4209-817a-7c741a2a8377' }),
+    ).toEqual(['CLOUDINARY_API_KEY']);
+    expect(problems({ ...production, CLOUDINARY_API_SECRET: '"quoted"' })).toEqual([
+      'CLOUDINARY_API_SECRET',
+    ]);
+    expect(problems({ ...production, CLOUDINARY_CLOUD_NAME: 'my cloud' })).toEqual([
+      'CLOUDINARY_CLOUD_NAME',
+    ]);
+    // Whitespace around a pasted value is trimmed, not refused.
+    expect(
+      parseEnv({ ...production, CLOUDINARY_API_KEY: ' 123456789012345 ' }).CLOUDINARY_API_KEY,
+    ).toBe('123456789012345');
   });
 
   it('treats empty values as unset', () => {

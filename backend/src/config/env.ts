@@ -29,9 +29,26 @@ const envSchema = z
 
     // Cloudinary (avatar uploads). Optional in development and test: without them the upload
     // route answers 503 UPLOAD_UNAVAILABLE. Tests mock src/lib/cloudinary.ts.
-    CLOUDINARY_CLOUD_NAME: z.string().optional(),
-    CLOUDINARY_API_KEY: z.string().optional(),
-    CLOUDINARY_API_SECRET: z.string().optional(),
+    // Take all three from Settings → API Keys in the Cloudinary console. An OAuth app's client
+    // ID (a UUID) is not an API key; Cloudinary refuses it with "Invalid api_key" (D49).
+    CLOUDINARY_CLOUD_NAME: z
+      .string()
+      .trim()
+      .regex(/^[a-z0-9_-]+$/i, 'CLOUDINARY_CLOUD_NAME must be the cloud name, e.g. "dxyz123ab"')
+      .optional(),
+    CLOUDINARY_API_KEY: z
+      .string()
+      .trim()
+      .regex(
+        /^\d+$/,
+        'CLOUDINARY_API_KEY must be the numeric API key from Settings → API Keys in Cloudinary',
+      )
+      .optional(),
+    CLOUDINARY_API_SECRET: z
+      .string()
+      .trim()
+      .regex(/^[\w-]+$/, 'CLOUDINARY_API_SECRET must be the API secret, without quotes or spaces')
+      .optional(),
 
     // Membership payments (DECISIONS D32, D47). `mock` stands in for SSLCommerz until the merchant
     // account exists; it is refused in production. `disabled` turns checkout off (503
