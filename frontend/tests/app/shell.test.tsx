@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Workspace } from '@/app/(app)/_components/workspace';
 import { api } from '@/lib/api';
 import { authClient, resetAuthClient, setSession } from '../mocks/auth-client';
@@ -92,6 +93,55 @@ describe('workspace guard', () => {
     get.mockResolvedValue(ok(studentProfile()));
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText('Page content')).toBeTruthy();
+  });
+});
+
+describe('workspace guard across a sign-out and a new sign-in in the same tab', () => {
+  // With cacheComponents, Next keeps the workspace alive in a hidden <Activity> after the
+  // sign-out navigation and restores its state on the next visit. Re-rendering the same
+  // mounted guard stands in for that here.
+  const tree = (client: QueryClient) => (
+    <QueryClientProvider client={client}>
+      <Workspace>
+        <p>Page content</p>
+      </Workspace>
+    </QueryClientProvider>
+  );
+
+  it('shows the workspace again after signing in anew, not the sign-out skeleton', async () => {
+    setSession(SESSION);
+    get.mockResolvedValue(ok(studentProfile()));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = render(tree(client));
+    await screen.findByText('Page content');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/'));
+    setSession(null);
+    view.rerender(tree(client));
+    expect(screen.getByLabelText('Loading your account')).toBeTruthy();
+
+    // Signed in again: a new session, so the guard must stop "leaving" and load the profile.
+    setSession({ ...SESSION, session: { id: 's2' } });
+    view.rerender(tree(client));
+    expect(await screen.findByText('Page content')).toBeTruthy();
+  });
+
+  it('does not refetch the profile while signing out', async () => {
+    setSession(SESSION);
+    get.mockResolvedValue(ok(studentProfile()));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const view = render(tree(client));
+    await screen.findByText('Page content');
+    expect(get).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/'));
+    // The router re-renders the guard on its way out, after the cache was cleared. A profile
+    // query still enabled would refetch here with a request that can only fail with 401.
+    view.rerender(tree(client));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(get).toHaveBeenCalledTimes(1);
   });
 });
 
