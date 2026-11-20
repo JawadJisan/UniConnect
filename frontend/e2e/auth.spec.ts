@@ -70,6 +70,44 @@ test.describe('session handling', () => {
     await expect(page).toHaveURL(/\/dashboard$/);
   });
 
+  test('signing in again in the same tab, with a slow API, lands on a loaded dashboard', async ({
+    page,
+  }) => {
+    // The live bug: after a sign-out and a new sign-in without a reload, /dashboard stayed on
+    // its loading skeleton until the page was reloaded. Next restored the workspace guard from
+    // its hidden <Activity> with the sign-out's `leaving` state still set. A slow session
+    // endpoint, like a Render instance that has just woken, is kept to match the live timing.
+    await page.route('**/api/auth/get-session*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.continue();
+    });
+    const welcome = page.getByRole('heading', { level: 1, name: /^Welcome, / });
+
+    await page.goto('/login');
+    await page.getByLabel('Email').fill(USERS.student.email);
+    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+    await expect(welcome).toBeVisible();
+
+    // Marks this document: a full page load (the user's manual workaround) would drop it.
+    await page.evaluate(() => ((window as { e2eSameDocument?: boolean }).e2eSameDocument = true));
+
+    await page.getByRole('banner').getByRole('button', { name: 'Sign out' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await page.getByRole('banner').getByRole('link', { name: 'Log in' }).click();
+    await expect(page).toHaveURL(/\/login$/);
+    await page.getByLabel('Email').fill(USERS.student.email);
+    await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
+    await page.getByRole('button', { name: 'Log in' }).click();
+
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(welcome).toBeVisible();
+    await expect(page.getByLabel('Loading your account')).toHaveCount(0);
+    expect(
+      await page.evaluate(() => (window as { e2eSameDocument?: boolean }).e2eSameDocument),
+    ).toBe(true);
+  });
+
   test('signing out ends the session', async ({ page }) => {
     await logIn(page, USERS.faculty.email);
     await page.getByRole('banner').getByRole('button', { name: 'Sign out' }).click();

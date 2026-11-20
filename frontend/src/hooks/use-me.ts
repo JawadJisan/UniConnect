@@ -24,11 +24,15 @@ async function fetchMe(): Promise<UserProfile> {
   }
 }
 
-/** The signed-in user's profile (GET /api/v1/users/me). Errors are ApiErrors. */
-export function useMe() {
+/**
+ * The signed-in user's profile (GET /api/v1/users/me). Errors are ApiErrors. `enabled: false`
+ * stops it fetching, e.g. while signing out, when a refetch could only cache a 401.
+ */
+export function useMe({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ME_KEY,
     queryFn: fetchMe,
+    enabled,
     // A 401 or 403 won't fix itself on retry; the guard handles both.
     retry: (count, err) => {
       const status = (err as { status?: number }).status ?? 0;
