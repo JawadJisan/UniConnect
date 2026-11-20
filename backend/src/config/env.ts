@@ -60,6 +60,11 @@ const envSchema = z
     // never hard-coded. Tests mock src/lib/gemini.ts.
     GEMINI_API_KEY: z.string().optional(),
     GEMINI_MODEL: z.string().optional(),
+    // Tried once when GEMINI_MODEL is overloaded (429/5xx) or slow; unset means no fallback.
+    GEMINI_FALLBACK_MODEL: z.string().optional(),
+    // The whole budget for one AI call, fallback included. Keep it under the Next.js rewrite's
+    // 30 s proxy timeout, or the browser sees a 500 before the API answers.
+    GEMINI_TIMEOUT_MS: z.coerce.number().int().min(2_000).max(28_000).default(25_000),
 
     // The Next.js proxy's shared secret (DECISIONS §7 H1, D46). Only a request carrying it may
     // name the client IP; in production a request without it is refused, so the API port can't

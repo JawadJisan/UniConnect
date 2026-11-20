@@ -9,7 +9,7 @@ import {
 } from '@uniconnect/shared';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { todayInDhaka } from '../../lib/dates.js';
-import { aiConfigured, generateText } from '../../lib/gemini.js';
+import { aiConfigured, GeminiError, generateText } from '../../lib/gemini.js';
 import { AppError } from '../../lib/http-error.js';
 import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
@@ -30,6 +30,18 @@ export const notConfigured = () =>
   new AppError(503, 'AI_NOT_CONFIGURED', 'The assistant is not set up on this server.');
 export const unavailable = () =>
   new AppError(503, 'AI_UNAVAILABLE', 'The assistant is unavailable. Try again shortly.');
+
+/**
+ * Logs a failed Gemini call and returns the 503 to throw. An overloaded or slow model is
+ * Google's side and only a warning; a rejected request (key, model ID) is ours to fix.
+ */
+export function aiFailure(what: string, err: unknown): AppError {
+  const kind = err instanceof GeminiError ? err.kind : 'unknown';
+  const line = `${what} failed (${kind}): ${(err as Error).message}`;
+  if (kind === 'busy' || kind === 'timeout') logger.warn(line);
+  else logger.error(line);
+  return unavailable();
+}
 
 export function toChatLogEntry(row: ChatLogRow): ChatLogEntry {
   return {
@@ -73,8 +85,7 @@ export const chatbotService = {
           temperature: 0.2,
         });
       } catch (err) {
-        logger.error(`chatbot ask failed: ${(err as Error).message}`);
-        throw unavailable();
+        throw aiFailure('chatbot ask', err);
       }
       const answer = text || FALLBACK_ANSWER;
       result = {

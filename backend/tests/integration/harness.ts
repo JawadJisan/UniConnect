@@ -125,11 +125,20 @@ export const gemini = {
   reply: 'Here is what I found.',
   calls: [] as { system: string; prompt: string }[],
 };
+class GeminiError extends Error {
+  constructor(
+    readonly kind: string,
+    message: string,
+  ) {
+    super(`gemini: ${message}`);
+  }
+}
 jest.unstable_mockModule('../../src/lib/gemini.js', () => ({
+  GeminiError,
   aiConfigured: () => gemini.configured,
   generateText: async (input: { system: string; prompt: string }) => {
     gemini.calls.push({ system: input.system, prompt: input.prompt });
-    if (gemini.fail) throw new Error('gemini: down');
+    if (gemini.fail) throw new GeminiError('busy', 'primary model 503: down');
     return gemini.reply;
   },
 }));

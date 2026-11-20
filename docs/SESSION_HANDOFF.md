@@ -4,25 +4,33 @@ Overwrite this file at the end of every session. Git history keeps earlier hando
 
 ## Task and objective
 
-Seed verified test users for manual testing, 2026-11-17, on `chore/seed-test-users` from `main`. Not committed yet.
+Fix `chatbot ask failed: gemini: timed out`, 2026-11-20. Uncommitted, on `main` (no task branch yet; create `fix/gemini-timeout-fallback` before committing).
+
+## Diagnosis
+
+- Not a configuration error: the key and model load and Google accepts them (no 401/403/404). Network is fine (DNS 29 ms, HTTPS ~0.5 s).
+- Google answered `503 "This model is currently experiencing high demand"` for `gemini-3.8-flash` and the earlier preview model, or held the request open; `gemini-3.5-flash` hung. `gemini-3.5-flash-lite` answered, in 2–16 s.
+- The fixed 10 s abort in `src/lib/gemini.ts` turned every slow answer into "timed out", which hid the 503.
 
 ## Completed work
 
-- `backend/prisma/seed-test-users.ts` (`pnpm --filter @uniconnect/backend db:seed:test-users`): 10 students and 4 faculty per department (CSE, ECE, BBA), 42 in total. Every account has `emailVerified: true` and a full profile (blood group, phone; students also get session, year, semester and student ID), and each insert writes a `USER_REGISTERED` audit row with `via: 'test-seed'`. Refuses `NODE_ENV=production`. Skips existing emails and student IDs, so it is safe to rerun. Kept out of `seed.ts`, so `db:seed` never creates demo users.
-- Faculty names are from ist.edu.bd/faculty-members; student names are invented. Emails are `<dept>.<student|faculty>NN@uniconnect.test`, and the password is `Jawad@123` for all.
-- The script writes `docs/testing/TEST_USERS.md` and `test-users.csv`. `docs/testing/TEST_USERS.pdf` was printed from the CSV with headless Edge (the HTML template was a scratchpad script, not in the repo).
-- The script is in `backend/tsconfig.json` `include`.
+- `backend/src/lib/gemini.ts`: one time budget per call (`GEMINI_TIMEOUT_MS`, default 25 s); optional `GEMINI_FALLBACK_MODEL` tried once after a 429/5xx or after the primary uses 60% of the budget, never after a 4xx rejection; `GeminiError` with `kind` (`busy`, `timeout`, `rejected`, `not_configured`) and Google's status in the message.
+- `chatbot.service.ts`: `aiFailure()` logs the kind (busy and timeout as warnings, the rest as errors) and returns the same 503 `AI_UNAVAILABLE`; `ai.service.ts` uses it. API contract and frontend unchanged.
+- `env.ts` and `.env.example`: `GEMINI_FALLBACK_MODEL`, `GEMINI_TIMEOUT_MS` (2,000–28,000, under the Next.js rewrite's 30 s proxy timeout).
+- `tests/gemini.test.ts` (new, SDK mocked, fake timers); `GeminiError` added to the gemini mocks in `tests/chatbot.test.ts` and `tests/integration/harness.ts`.
+- D44 in `docs/DECISIONS.md` updated.
 
 ## Commands executed and results
 
-| Command                                                                                              | Result                                                                        |
-| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `pnpm --filter @uniconnect/backend typecheck`, `eslint` on the script                                | Pass                                                                          |
-| `pnpm db:seed:test-users` on Neon `development`                                                      | 42 created, 0 skipped                                                         |
-| Same, rerun                                                                                          | 0 created, 42 skipped                                                         |
-| Group-by on `@uniconnect.test` users; `auth.api.signInEmail` for `cse.student01` and `ece.faculty01` | 10 students and 4 faculty per department, all verified; both sign-ins succeed |
+| Command                                                     | Result                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------- |
+| `pnpm --filter @uniconnect/backend test`                    | 25 suites, 457 tests pass                               |
+| `pnpm typecheck`, `pnpm lint`, `pnpm format:check`          | Pass                                                    |
+| Live `generateText` (scratch script, real key), no fallback | Fails in 2.9 s as `busy`: primary model 503 high demand |
+| Same with `GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite`     | `"OK"` in 24.3 s                                        |
 
 ## Not covered
 
-- The PDF's rendering was not viewed (no PDF renderer here); Edge reported 178 KB written.
-- Not run on the `test` branch; e2e users still come from `e2e:db`.
+- `test:integration` (Neon `test` branch) not run; the harness mock changed only in the error it throws.
+- Not checked through the browser chatbot on `/dashboard`.
+- The user pasted the Gemini API key into the chat; they were told to rotate it.
