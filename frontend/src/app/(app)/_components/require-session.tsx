@@ -43,9 +43,19 @@ export function RequireSession({ children }: { children: (profile: UserProfile) 
   const pathname = usePathname();
   const queryClient = useQueryClient();
   const session = authClient.useSession();
-  const [leaving, setLeaving] = useState(false);
+  const sessionId = session.data?.session.id ?? null;
+  // The session being signed out, or null. `leaving` is derived from it rather than stored as a
+  // boolean: with cacheComponents, Next keeps this guard alive in a hidden <Activity> after the
+  // sign-out navigation and restores its state when the visitor signs in again in the same tab.
+  // A stored `true` then outlived the sign-out and held /dashboard on the skeleton until a
+  // reload. A new session has a new id, so it ends `leaving` by itself.
+  const [leavingSessionId, setLeavingSessionId] = useState<string | null>(null);
+  const leaving =
+    leavingSessionId !== null && (sessionId === null || sessionId === leavingSessionId);
   const signedOut = !session.isPending && !session.data;
-  const me = useMe();
+  // Off while signing out: after `queryClient.clear()` below, any re-render on the way out
+  // would refetch the profile with a request that can only fail with 401.
+  const me = useMe({ enabled: !leaving });
   const status = (me.error as ApiError | null)?.status;
 
   useEffect(() => {
@@ -54,12 +64,12 @@ export function RequireSession({ children }: { children: (profile: UserProfile) 
   }, [leaving, signedOut, status, pathname, router]);
 
   const signOut = useCallback(async () => {
-    setLeaving(true);
+    setLeavingSessionId(sessionId ?? '');
     await authClient.signOut();
     router.replace('/');
     // Nothing from this account may outlive the session in the cache.
     queryClient.clear();
-  }, [queryClient, router]);
+  }, [queryClient, router, sessionId]);
 
   if (status === 403) return <Suspended />;
 
