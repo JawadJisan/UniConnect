@@ -1,7 +1,6 @@
 import type { EventDescriptionDraft, GenerateEventDescriptionInput } from '@uniconnect/shared';
 import { aiConfigured, generateText } from '../../lib/gemini.js';
-import { logger } from '../../lib/logger.js';
-import { notConfigured, unavailable } from '../chatbot/chatbot.service.js';
+import { aiFailure, notConfigured, unavailable } from '../chatbot/chatbot.service.js';
 import { DESCRIPTION_SYSTEM, descriptionPrompt } from '../chatbot/chatbot.prompt.js';
 
 // FR-AI-003 (DECISIONS D44): a 2–3 sentence draft the organizer edits before saving. Reads no
@@ -19,8 +18,7 @@ export const aiService = {
         temperature: 0.7,
       });
     } catch (err) {
-      logger.error(`event description failed: ${(err as Error).message}`);
-      throw unavailable();
+      throw aiFailure('event description', err);
     }
     if (!text) throw unavailable();
     return { description: text };

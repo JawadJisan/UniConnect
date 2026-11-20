@@ -37,6 +37,7 @@ jest.unstable_mockModule('../src/lib/redis.js', () => ({
   createRedis: () => ({}),
 }));
 jest.unstable_mockModule('../src/lib/gemini.js', () => ({
+  GeminiError: class extends Error {},
   aiConfigured: () => gemini.configured,
   generateText: async () => 'never called here',
 }));
